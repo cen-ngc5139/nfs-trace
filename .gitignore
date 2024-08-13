@@ -1,2 +1,6 @@
 .idea
 nfs-trace
+kprobepwru_x86_bpfel.go
+kprobepwru_x86_bpfel.o
+nfs-trace-linux-arm64
+nfs-trace-linux-amd64

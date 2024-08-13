@@ -29,7 +29,7 @@ type Addr2Name struct {
 	Name2AddrMap   map[string][]uintptr
 }
 
-func (a *Addr2Name) findNearestSym(ip uint64) string {
+func (a *Addr2Name) FindNearestSym(ip uint64) string {
 	total := len(a.Addr2NameSlice)
 	i, j := 0, total
 	for i < j {
