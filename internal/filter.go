@@ -18,7 +18,7 @@ func (f Funcs) ToString() {
 	}
 }
 
-func GetFuncs(pattern, filterStruct string, spec *btf.Spec, kmods []string, kprobeMulti bool) (funcs Funcs, err error) {
+func GetFuncs(pattern, filterStruct, modelBTF string, spec *btf.Spec, kmods []string, kprobeMulti bool) (funcs Funcs, err error) {
 	funcs = Funcs{}
 	type iterator struct {
 		kmod string
@@ -40,7 +40,7 @@ func GetFuncs(pattern, filterStruct string, spec *btf.Spec, kmods []string, kpro
 
 	iters := []iterator{{"", spec.Iterate()}}
 	for _, module := range kmods {
-		path := filepath.Join("/sys/kernel/btf", module)
+		path := filepath.Join(modelBTF, module)
 		f, err := os.Open(path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open %s: %v", path, err)
