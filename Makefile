@@ -28,7 +28,7 @@ dlv:
 	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace-linux-amd64 -- --filter-struct rpc_task --filter-func ^nfs.* --all-kmods true
 
 run:
-	./cmd/nfs-trace-linux-amd64 --filter-struct rpc_task --filter-func ^nfs.* --all-kmods true
+	./cmd/nfs-trace-linux-amd64 --filter-struct rpc_task --all-kmods true
 
 elf:
 	TARGET_GOARCH=$(TARGET_GOARCH) $(GO_GENERATE)

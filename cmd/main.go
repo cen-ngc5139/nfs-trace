@@ -21,8 +21,8 @@ import (
 )
 
 var (
-	filterFunc, filterStruct, kernelBTF string
-	allKMods                            bool
+	filterFunc, filterStruct, kernelBTF, modelBTF string
+	allKMods                                      bool
 )
 
 func main() {
@@ -36,6 +36,7 @@ func main() {
 	flag.StringVar(&filterFunc, "filter-func", "", "filter kernel functions to be probed by name (exact match, supports RE2 regular expression)")
 	flag.StringVar(&filterStruct, "filter-struct", "", "filter kernel structs to be probed by name (ex. sk_buff/rpc_task)")
 	flag.StringVar(&kernelBTF, "kernel-btf", "", "specify kernel BTF file")
+	flag.StringVar(&modelBTF, "model-btf-dir", "", "specify kernel model BTF dir")
 	flag.BoolVar(&allKMods, "all-kmods", false, "attach to all available kernel modules")
 	flag.Parse()
 
@@ -63,10 +64,14 @@ func main() {
 		klog.Fatalf("Failed to load BTF spec: %s", err)
 	}
 
+	if len(modelBTF) == 0 {
+		modelBTF = "/sys/kernel/btf"
+	}
+
 	kmods := make([]string, 0)
 	if allKMods {
 		// get all kernel modules
-		files, err := os.ReadDir("/sys/kernel/btf")
+		files, err := os.ReadDir(modelBTF)
 		if err != nil {
 			log.Fatalf("Failed to read directory: %s", err)
 		}
@@ -79,7 +84,7 @@ func main() {
 	}
 
 	// filter functions
-	funcs, err := internal.GetFuncs(filterFunc, filterStruct, btfSpec, kmods, false)
+	funcs, err := internal.GetFuncs(filterFunc, filterStruct, modelBTF, btfSpec, kmods, false)
 	if err != nil {
 		log.Fatalf("Failed to get skb-accepting functions: %s", err)
 	}
@@ -153,7 +158,7 @@ func main() {
 
 		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &event); err != nil {
 			fmt.Fprintf(os.Stderr, "Parsing event data failed: %v\n", err)
-			os.Exit(1)
+			continue
 		}
 
 		funcName := addr2name.FindNearestSym(event.CallerAddr)
