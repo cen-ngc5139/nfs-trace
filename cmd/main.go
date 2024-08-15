@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"errors"
-	"flag"
 	"fmt"
 	"github.com/cen-ngc5139/nfs-trace/internal"
 	"github.com/cilium/ebpf"
@@ -20,25 +19,16 @@ import (
 	"syscall"
 )
 
-var (
-	filterFunc, filterStruct, kernelBTF, modelBTF string
-	allKMods                                      bool
-)
-
 func main() {
+	flag := internal.Flags{}
+	flag.SetFlags()
+	flag.Parse()
 
 	// Remove memory limit for eBPF programs
 	if err := rlimit.RemoveMemlock(); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to remove memlock limit: %v\n", err)
 		os.Exit(1)
 	}
-
-	flag.StringVar(&filterFunc, "filter-func", "", "filter kernel functions to be probed by name (exact match, supports RE2 regular expression)")
-	flag.StringVar(&filterStruct, "filter-struct", "", "filter kernel structs to be probed by name (ex. sk_buff/rpc_task)")
-	flag.StringVar(&kernelBTF, "kernel-btf", "", "specify kernel BTF file")
-	flag.StringVar(&modelBTF, "model-btf-dir", "", "specify kernel model BTF dir")
-	flag.BoolVar(&allKMods, "all-kmods", false, "attach to all available kernel modules")
-	flag.Parse()
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
@@ -53,8 +43,8 @@ func main() {
 
 	var btfSpec *btf.Spec
 	var err error
-	if kernelBTF != "" {
-		btfSpec, err = btf.LoadSpec(kernelBTF)
+	if flag.KernelBTF != "" {
+		btfSpec, err = btf.LoadSpec(flag.KernelBTF)
 	} else {
 		// load kernel BTF spec from /sys/kernel/btf/vmlinux
 		btfSpec, err = btf.LoadKernelSpec()
@@ -64,14 +54,14 @@ func main() {
 		klog.Fatalf("Failed to load BTF spec: %s", err)
 	}
 
-	if len(modelBTF) == 0 {
-		modelBTF = "/sys/kernel/btf"
+	if len(flag.ModelBTF) == 0 {
+		flag.ModelBTF = "/sys/kernel/btf"
 	}
 
 	kmods := make([]string, 0)
-	if allKMods {
+	if flag.AllKMods {
 		// get all kernel modules
-		files, err := os.ReadDir(modelBTF)
+		files, err := os.ReadDir(flag.ModelBTF)
 		if err != nil {
 			log.Fatalf("Failed to read directory: %s", err)
 		}
@@ -84,12 +74,17 @@ func main() {
 	}
 
 	// filter functions
-	funcs, err := internal.GetFuncs(filterFunc, filterStruct, modelBTF, btfSpec, kmods, false)
+	funcs, err := internal.GetFuncs(flag.FilterFunc, flag.FilterStruct, flag.ModelBTF, btfSpec, kmods, false)
 	if err != nil {
 		log.Fatalf("Failed to get skb-accepting functions: %s", err)
 	}
 
 	funcs.ToString()
+
+	if flag.SkipAttach {
+		klog.Info("Skipping attaching kprobes")
+		return
+	}
 
 	// get function addresses
 	addr2name, _, err := internal.ParseKallsyms(funcs, true)
@@ -148,7 +143,7 @@ func main() {
 	}
 	defer rd.Close()
 
-	fmt.Printf("Addr \t\tPid \t\tStatus \t\tOwnerID \t\tCgroup Name \n")
+	fmt.Printf("Addr \t\tPID \t\tCgroup Name \n")
 	for {
 		record, err := rd.Read()
 		if err != nil {
@@ -156,14 +151,18 @@ func main() {
 			os.Exit(1)
 		}
 
-		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &event); err != nil {
-			fmt.Fprintf(os.Stderr, "Parsing event data failed: %v\n", err)
+		if record.RawSample == nil {
 			continue
 		}
 
+		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &event); err != nil {
+			fmt.Fprintf(os.Stderr, "Parsing event data failed: %v\n", err)
+			os.Exit(1)
+		}
+
 		funcName := addr2name.FindNearestSym(event.CallerAddr)
-		fmt.Printf("%s \t\t%d \t\t%d \t\t%d \t\t%s \n",
-			funcName, event.Pid, event.Status, event.OwnerPid, convertInt8ToString(event.CgroupName[:]))
+		fmt.Printf("%s \t\t%d \t\t%s \n",
+			funcName, event.OwnerPid, convertInt8ToString(event.CgroupName[:]))
 
 		select {
 		case <-ctx.Done():
