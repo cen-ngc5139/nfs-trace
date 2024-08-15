@@ -15,20 +15,18 @@ CC ?= gcc
 TEST_TIMEOUT ?= 5s
 .DEFAULT_GOAL := pwru
 
-
-test: elf build run
-
-
-
 build:
 	cd ./cmd;CGO_ENABLED=0 GOOS=linux GOARCH=amd64   go build -gcflags "all=-N -l" -o nfs-trace-linux-amd64
 	cd ./cmd;CGO_ENABLED=0 GOOS=linux GOARCH=arm64   go build -gcflags "all=-N -l" -o nfs-trace-linux-arm64
 
-dlv:
-	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace-linux-amd64 -- --filter-struct rpc_task --filter-func ^nfs.* --all-kmods true
+dlv: elf build
+	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace-linux-amd64 -- -filter-struct=rpc_task  -skip-attach=true -all-kmods=true
 
-run:
-	./cmd/nfs-trace-linux-amd64 --filter-struct rpc_task --all-kmods true
+run: elf build
+	./cmd/nfs-trace-linux-amd64 -filter-struct=rpc_task -filter-func="^nfs.*" -all-kmods=true
+
+skip: elf build
+	./cmd/nfs-trace-linux-amd64 -filter-struct=rpc_task -skip-attach=true -all-kmods=true -filter-func="^nfs.*"
 
 elf:
 	TARGET_GOARCH=$(TARGET_GOARCH) $(GO_GENERATE)
