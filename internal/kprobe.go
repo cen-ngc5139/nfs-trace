@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"k8s.io/klog/v2"
 	"log"
 	"os"
 	"sync"
@@ -218,6 +219,11 @@ func NewKprober(ctx context.Context, funcs Funcs, coll *ebpf.Collection, a2n Add
 			ignored += len(fns)
 			bar.Add(len(fns))
 		}
+	}
+
+	if len(pwruKprobes) == 0 {
+		bar.Finish()
+		klog.Exit("No kprobes to attach")
 	}
 
 	var k kprober

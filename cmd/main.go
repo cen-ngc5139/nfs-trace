@@ -16,7 +16,9 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -133,7 +135,6 @@ func main() {
 		}
 	}()
 
-	var event KProbePWRURpcTaskFields
 	events := coll.Maps["rpc_task_map"]
 	// Set up a perf reader to read events from the eBPF program
 	rd, err := perf.NewReader(events, os.Getpagesize())
@@ -143,26 +144,39 @@ func main() {
 	}
 	defer rd.Close()
 
-	fmt.Printf("Addr \t\tPID \t\tCgroup Name \n")
+	// 启动定时检查 ctx 是否结束的任务
+	go func() {
+		ticker := time.NewTicker(2 * time.Second)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ticker.C:
+			case <-ctx.Done():
+				os.Exit(0)
+			}
+		}
+	}()
+
+	fmt.Printf("Addr \t\tPID \t\tCgroup Name \t\tfile \n")
+	var event KProbePWRURpcTaskFields
 	for {
-		record, err := rd.Read()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Reading from perf reader failed: %v\n", err)
-			os.Exit(1)
-		}
+		for {
+			if err := parseEvent(rd, &event); err == nil {
+				break
+			}
 
-		if record.RawSample == nil {
-			continue
-		}
-
-		if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, &event); err != nil {
-			fmt.Fprintf(os.Stderr, "Parsing event data failed: %v\n", err)
-			os.Exit(1)
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Microsecond):
+				continue
+			}
 		}
 
 		funcName := addr2name.FindNearestSym(event.CallerAddr)
-		fmt.Printf("%s \t\t%d \t\t%s \n",
-			funcName, event.OwnerPid, convertInt8ToString(event.CgroupName[:]))
+		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \n",
+			funcName, event.OwnerPid, convertInt8ToString(event.CgroupName[:]), parseFileName(event.File[:]))
 
 		select {
 		case <-ctx.Done():
@@ -172,10 +186,45 @@ func main() {
 	}
 }
 
+func parseEvent(rd *perf.Reader, event *KProbePWRURpcTaskFields) error {
+	record, err := rd.Read()
+	if err != nil {
+		return err
+	}
+
+	if record.RawSample == nil {
+		return errors.New("record.RawSample is nil")
+	}
+
+	if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, event); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func convertInt8ToString(bs []int8) string {
 	ba := make([]byte, 0, len(bs))
 	for _, b := range bs {
 		ba = append(ba, byte(b))
 	}
 	return string(ba)
+}
+
+func parseFileName(bs []int8) string {
+	ba := make([]byte, 0, len(bs))
+	for _, b := range bs {
+		ba = append(ba, byte(b))
+	}
+	return filterNonASCII(ba)
+}
+
+func filterNonASCII(data []byte) string {
+	var sb strings.Builder
+	for _, b := range data {
+		if b >= 32 && b <= 126 { // 只保留可见 ASCII 字符
+			sb.WriteByte(b)
+		}
+	}
+	return sb.String()
 }
