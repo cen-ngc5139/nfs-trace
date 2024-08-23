@@ -1,4 +1,5 @@
 .idea
+e2e
 nfs-trace
 kprobepwru_x86_bpfel.go
 kprobepwru_x86_bpfel.o

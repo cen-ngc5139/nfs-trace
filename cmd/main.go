@@ -75,10 +75,21 @@ func main() {
 		}
 	}
 
+	var addFuncs internal.Funcs
+	addFuncs = make(map[string]int)
+	if flag.AddFuncs != "" {
+		addFuncs = internal.SplitCustomFunList(flag.AddFuncs)
+	}
+
 	// filter functions
 	funcs, err := internal.GetFuncs(flag.FilterFunc, flag.FilterStruct, flag.ModelBTF, btfSpec, kmods, false)
 	if err != nil {
 		log.Fatalf("Failed to get skb-accepting functions: %s", err)
+	}
+
+	// add functions
+	if len(addFuncs) != 0 {
+		funcs = internal.MergerFunList(funcs, addFuncs)
 	}
 
 	funcs.ToString()
@@ -144,21 +155,7 @@ func main() {
 	}
 	defer rd.Close()
 
-	// 启动定时检查 ctx 是否结束的任务
-	go func() {
-		ticker := time.NewTicker(2 * time.Second)
-		defer ticker.Stop()
-
-		for {
-			select {
-			case <-ticker.C:
-			case <-ctx.Done():
-				os.Exit(0)
-			}
-		}
-	}()
-
-	fmt.Printf("Addr \t\tPID \t\tCgroup Name \t\tfile \n")
+	fmt.Printf("Addr \t\tPID \t\tCgroup Name \t\t Cgroup ID \t\tfile \n")
 	var event KProbePWRURpcTaskFields
 	for {
 		for {
@@ -175,8 +172,8 @@ func main() {
 		}
 
 		funcName := addr2name.FindNearestSym(event.CallerAddr)
-		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \n",
-			funcName, event.OwnerPid, convertInt8ToString(event.CgroupName[:]), parseFileName(event.File[:]))
+		fmt.Printf("%s \t\t%d \t\t%s \t\t%d \t\t%s \n",
+			funcName, event.OwnerPid, convertInt8ToString(event.CgroupName[:]), event.CgroupId, parseFileName(event.File[:]))
 
 		select {
 		case <-ctx.Done():

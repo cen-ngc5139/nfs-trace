@@ -29,6 +29,9 @@ run: elf build
 skip: elf build
 	./cmd/nfs-trace-linux-amd64 -filter-struct=$(FILTER_STRUCT) -skip-attach=true -all-kmods=true -filter-func="^nfs.*"
 
+funcs: elf build
+	./cmd/nfs-trace-linux-amd64 -filter-struct=kiocb -all-kmods=true -filter-func="^nfs.*" -add-funcs="nfs_file_direct_read:1,nfs_file_direct_write:1,nfs_swap_rw:1,nfs_file_read:1,nfs_file_write:1"
+
 elf:
 	TARGET_GOARCH=$(TARGET_GOARCH) FILTER_STRUCT=$(FILTER_STRUCT) $(GO_GENERATE)
     	CC=$(CC) GOARCH=$(TARGET_GOARCH) $(GO_BUILD) $(if $(GO_TAGS),-tags $(GO_TAGS)) \

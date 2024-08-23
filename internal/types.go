@@ -11,6 +11,7 @@ type Flags struct {
 	KernelBTF    string
 	AllKMods     bool
 	SkipAttach   bool
+	AddFuncs     string
 }
 
 func (f *Flags) SetFlags() {
@@ -20,6 +21,7 @@ func (f *Flags) SetFlags() {
 	flag.StringVar(&f.ModelBTF, "model-btf-dir", "", "specify kernel model BTF dir")
 	flag.BoolVar(&f.AllKMods, "all-kmods", false, "attach to all available kernel modules")
 	flag.BoolVar(&f.SkipAttach, "skip-attach", false, "skip attaching kprobes")
+	flag.StringVar(&f.AddFuncs, "add-funcs", "", "add functions to be probed by name (ex. rpc_task:1,sk_buff:2)")
 }
 
 func (f *Flags) Parse() {

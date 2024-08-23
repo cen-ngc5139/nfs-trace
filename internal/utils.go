@@ -10,7 +10,10 @@ import (
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/asm"
 	"github.com/cilium/ebpf/link"
+	"log"
 	"os"
+	"strconv"
+	"strings"
 )
 
 // getAvailableFilterFunctions return list of functions to which it is possible
@@ -101,4 +104,31 @@ func HaveBPFLinkTracing() bool {
 func HaveAvailableFilterFunctions() bool {
 	_, err := getAvailableFilterFunctions()
 	return err == nil
+}
+
+func SplitCustomFunList(funList string) (addFuncs Funcs) {
+	addFuncs = make(map[string]int)
+	funcSplit := strings.Split(funList, ",")
+	for _, f := range funcSplit {
+		funcArray := strings.Split(f, ":")
+		if len(funcArray) != 2 {
+			log.Fatalf("Invalid function format: %s", f)
+		}
+
+		funcName := funcArray[0]
+		funcParamIndex, err := strconv.Atoi(funcArray[1])
+		if err != nil {
+			log.Fatalf("Invalid function format: %s", f)
+		}
+		addFuncs[funcName] = funcParamIndex
+	}
+
+	return
+}
+
+func MergerFunList(funList1, funList2 Funcs) Funcs {
+	for k, v := range funList2 {
+		funList1[k] = v
+	}
+	return funList1
 }
