@@ -13,6 +13,7 @@ struct rpc_task_fields
 {
 	int owner_pid;
 	char cgroup_name[256];
+	u64 cgroup_id;
 	u64 caller_addr;
 	char file[40];
 };
@@ -29,7 +30,7 @@ struct
 #endif
 
 static __always_inline struct rpc_task_fields
-kprobe_rpc(struct rpc_task *task, struct pt_regs *ctx)
+kprobe_nfs_rpc_task(struct rpc_task *task, struct pt_regs *ctx)
 {
 	struct rpc_task_fields event = {};
 	int owner_pid;
@@ -81,7 +82,7 @@ kprobe_nfs_header(struct nfs_pgio_header *hdr, struct pt_regs *ctx)
         return BPF_OK;
     }
 
-    struct rpc_task_fields event = kprobe_rpc(rpc, ctx);
+    struct rpc_task_fields event = kprobe_nfs_rpc_task(rpc, ctx);
     if (!event.owner_pid)
     {
         return BPF_OK;
@@ -96,6 +97,11 @@ static __always_inline int
 kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
 {
     struct rpc_task_fields event = {};
+    struct task_struct *task;
+
+    // 获取 PID
+    event.owner_pid = bpf_get_current_pid_tgid() >> 32;
+
     // 从 kiocb 结构体中获取文件路径
     struct file *file = BPF_CORE_READ(iocb, ki_filp);
     if (!file)
@@ -113,10 +119,20 @@ kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
 
     bpf_probe_read_kernel(&event.file, sizeof(event.file), (void *)qs.name);
 
-    if (bpf_probe_read_kernel(&event.caller_addr, sizeof(event.caller_addr), (void *)PT_REGS_SP(ctx)) < 0)
+    if (bpf_probe_read_kernel(&event.caller_addr, sizeof(event.caller_addr), (void *)PT_REGS_SP(ctx)))
     {
         return 0;
     }
+
+    task = (struct task_struct *)bpf_get_current_task();
+    if (!task)
+    {
+        return 0;
+    }
+
+    // 获取 cgroup ID
+    event.cgroup_id = bpf_get_current_cgroup_id();
+
 
     // 输出事件到 perf 事件数组
     bpf_perf_event_output(ctx, &rpc_task_map, BPF_F_CURRENT_CPU, &event, sizeof(event));
