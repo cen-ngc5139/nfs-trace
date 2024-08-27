@@ -1,5 +1,6 @@
 .idea
 e2e
+e2e.tar
 nfs-trace
 kprobepwru_x86_bpfel.go
 kprobepwru_x86_bpfel.o
