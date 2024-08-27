@@ -12,8 +12,8 @@
 struct rpc_task_fields
 {
 	int owner_pid;
-	char cgroup_name[256];
-	u64 cgroup_id;
+	char pod[100];
+	char container[100];
 	u64 caller_addr;
 	char file[40];
 };
@@ -25,73 +25,24 @@ struct
 	__uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
 } rpc_task_map SEC(".maps");
 
+struct metadata
+{
+    char pod[100];
+    char container[100];
+    u64 pid;
+};
+
+struct
+{
+    __uint(type, BPF_MAP_TYPE_HASH);
+    __type(key, u64);
+    __type(value, struct metadata);
+    __uint(max_entries, 1024);
+} pid_cgroup_map SEC(".maps");
+
 #ifndef RPC_TASK_VAR
 #define RPC_TASK_VAR nfs_pgio_header
 #endif
-
-static __always_inline struct rpc_task_fields
-kprobe_nfs_rpc_task(struct rpc_task *task, struct pt_regs *ctx)
-{
-	struct rpc_task_fields event = {};
-	int owner_pid;
-
-	// 获取 tk_owner
-	owner_pid = BPF_CORE_READ(task, tk_owner);
-	if (owner_pid == 0)
-    {
-        return event;
-    }
-
-	event.owner_pid = owner_pid;
-	struct task_struct *cur_tsk = (struct task_struct *)bpf_get_current_task();
-	if (!cur_tsk)
-    {
-        return event;
-    }
-
-	const char *name = BPF_CORE_READ(cur_tsk, sched_task_group, css.cgroup, kn, name);
-    if (!name)
-    {
-        return event;
-    }
-
-	if (bpf_probe_read_str(&event.cgroup_name, sizeof(event.cgroup_name), name) < 0)
-    {
-        return event;
-    }
-
-	if (bpf_probe_read_kernel(&event.caller_addr, sizeof(event.caller_addr), (void *)PT_REGS_SP(ctx)) < 0)
-    {
-        return event;
-    }
-
-    bpf_printk("owner_pid: %d, cgroup_name: %s, caller_addr: %llx\n", event.owner_pid, event.cgroup_name, event.caller_addr);
-
-	return event;
-}
-
-static __always_inline int
-kprobe_nfs_header(struct nfs_pgio_header *hdr, struct pt_regs *ctx)
-{
-    bpf_printk("hdr: %llx\n", hdr);
-    struct rpc_task *rpc;
-    // 获取 tk_owner
-    BPF_CORE_READ_INTO(&rpc,hdr, task);
-    if (!rpc)
-    {
-        return BPF_OK;
-    }
-
-    struct rpc_task_fields event = kprobe_nfs_rpc_task(rpc, ctx);
-    if (!event.owner_pid)
-    {
-        return BPF_OK;
-    }
-
-    bpf_perf_event_output(ctx, &rpc_task_map, BPF_F_CURRENT_CPU, &event, sizeof(event));
-
-    return BPF_OK;
-}
 
 static __always_inline int
 kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
@@ -130,8 +81,13 @@ kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
         return 0;
     }
 
-    // 获取 cgroup ID
-    event.cgroup_id = bpf_get_current_cgroup_id();
+    // 使用 pid 到 pid_cgroup_map 中搜索
+    struct metadata *metadata = bpf_map_lookup_elem(&pid_cgroup_map, &event.owner_pid);
+    if (metadata)
+    {
+        bpf_probe_read_kernel(&event.pod, sizeof(event.pod), metadata->pod);
+        bpf_probe_read_kernel(&event.container, sizeof(event.container), metadata->container);
+    }
 
 
     // 输出事件到 perf 事件数组

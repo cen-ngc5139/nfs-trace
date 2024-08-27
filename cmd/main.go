@@ -7,6 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cen-ngc5139/nfs-trace/internal"
+	"github.com/cen-ngc5139/nfs-trace/internal/queue"
+	"github.com/cen-ngc5139/nfs-trace/internal/watch"
+	k8sclient "github.com/cen-ngc5139/nfs-trace/pkg/client"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/btf"
 	"github.com/cilium/ebpf/perf"
@@ -25,6 +28,9 @@ func main() {
 	flag := internal.Flags{}
 	flag.SetFlags()
 	flag.Parse()
+
+	stopChan := make(chan struct{})
+	defer close(stopChan)
 
 	// Remove memory limit for eBPF programs
 	if err := rlimit.RemoveMemlock(); err != nil {
@@ -155,6 +161,21 @@ func main() {
 	}
 	defer rd.Close()
 
+	// 初始化 k8s 客户端
+	mgr := k8sclient.NewK8sManager()
+	if err = mgr.CreateClient(); err != nil {
+		log.Panicf("Create k8s client failed, error :%v", err)
+	}
+
+	if err = watch.SyncPodStatus(mgr, stopChan); err != nil {
+		log.Panicf("Sync pod status failed, error :%v", err)
+	}
+
+	pidMap := coll.Maps["pid_cgroup_map"]
+	queue.Source.WithEbpfMap(pidMap)
+	// 启动 spark job pod 就绪清理控制器
+	go queue.Source.Export()
+
 	fmt.Printf("Addr \t\tPID \t\tCgroup Name \t\t Cgroup ID \t\tfile \n")
 	var event KProbePWRURpcTaskFields
 	for {
@@ -172,8 +193,8 @@ func main() {
 		}
 
 		funcName := addr2name.FindNearestSym(event.CallerAddr)
-		fmt.Printf("%s \t\t%d \t\t%s \t\t%d \t\t%s \n",
-			funcName, event.OwnerPid, convertInt8ToString(event.CgroupName[:]), event.CgroupId, parseFileName(event.File[:]))
+		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \n",
+			funcName, event.OwnerPid, convertInt8ToString(event.Pod[:]), convertInt8ToString(event.Container[:]), parseFileName(event.File[:]))
 
 		select {
 		case <-ctx.Done():
