@@ -176,7 +176,7 @@ func main() {
 	// 启动 spark job pod 就绪清理控制器
 	go queue.Source.Export()
 
-	fmt.Printf("Addr \t\tPID \t\tCgroup Name \t\t Cgroup ID \t\tfile \n")
+	fmt.Printf("Addr \t\t PID \t\t Pod Name \t\t Container ID \t\t Mount \t\t File \n")
 	var event KProbePWRURpcTaskFields
 	for {
 		for {
@@ -193,8 +193,9 @@ func main() {
 		}
 
 		funcName := addr2name.FindNearestSym(event.CallerAddr)
-		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \n",
-			funcName, event.OwnerPid, convertInt8ToString(event.Pod[:]), convertInt8ToString(event.Container[:]), parseFileName(event.File[:]))
+		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \n",
+			funcName, event.OwnerPid, convertInt8ToString(event.Pod[:]), convertInt8ToString(event.Container[:]),
+			parseFileName(event.Path[:]), parseFileName(event.File[:]))
 
 		select {
 		case <-ctx.Done():
@@ -234,7 +235,7 @@ func parseFileName(bs []int8) string {
 	for _, b := range bs {
 		ba = append(ba, byte(b))
 	}
-	return filterNonASCII(ba)
+	return strings.ReplaceAll(filterNonASCII(ba), "//", "/")
 }
 
 func filterNonASCII(data []byte) string {
