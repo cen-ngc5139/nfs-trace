@@ -2,6 +2,7 @@ package queue
 
 import (
 	"fmt"
+	"github.com/cen-ngc5139/nfs-trace/internal/cache"
 	"github.com/cen-ngc5139/nfs-trace/internal/cri"
 	"github.com/cilium/ebpf"
 	v1 "k8s.io/api/core/v1"
@@ -158,6 +159,11 @@ func (k *KubernetesEventSource) worker(pod *Event) error {
 			continue
 		}
 
+		// 移除可能的前缀
+		containerID := status.ContainerID
+		containerID = strings.TrimPrefix(containerID, "docker://")
+		containerID = strings.TrimPrefix(containerID, "containerd://")
+
 		switch pod.Type {
 		case UpdateEventType:
 			if pod.Pod.DeletionTimestamp != nil {
@@ -166,10 +172,10 @@ func (k *KubernetesEventSource) worker(pod *Event) error {
 			}
 
 			klog.Infof("start to process update event, pod: %s ", pod.Pod.Name)
-			return updatePidCgroupMap(k.PidCgroupMap, status.ContainerID, pod.Pod.Name, status.Name)
+			return updatePidCgroupMap(k.PidCgroupMap, containerID, pod.Pod.Name, status.Name)
 		case DelEventType:
 			klog.Infof("start to process delete event, pod: %s ", pod.Pod.Name)
-			return deletePidCgroupMap(k.PidCgroupMap, pod.Pod.Status.ContainerStatuses[0].ContainerID)
+			return deletePidCgroupMap(k.PidCgroupMap, containerID)
 
 		}
 	}
@@ -204,10 +210,6 @@ func int8ArrayToString(arr [100]int8) string {
 }
 
 func updatePidCgroupMap(m *ebpf.Map, containerID, pod, container string) error {
-	// 移除可能的前缀
-	containerID = strings.TrimPrefix(containerID, "docker://")
-	containerID = strings.TrimPrefix(containerID, "containerd://")
-
 	klog.Infof("update pid cgroup map, pid: %s", containerID)
 	pid, err := cri.NewContainerd(containerID).GetPid()
 	if err != nil {
@@ -226,6 +228,10 @@ func updatePidCgroupMap(m *ebpf.Map, containerID, pod, container string) error {
 		return err
 	}
 
+	defer func() {
+		cache.PodContainerPIDMap.LoadOrStore(containerID, pidKey)
+	}()
+
 	// 读取并验证数据（可选）
 	var retrievedValue Metadata
 	if err := m.Lookup(&pidKey, &retrievedValue); err != nil {
@@ -242,5 +248,44 @@ func updatePidCgroupMap(m *ebpf.Map, containerID, pod, container string) error {
 
 func deletePidCgroupMap(m *ebpf.Map, pid string) error {
 	klog.Infof("delete pid cgroup map, pid: %s", pid)
+	pidKey, ok := cache.PodContainerPIDMap.Load(pid)
+	if !ok {
+		return nil
+	}
+
+	pidKeyUint64, ok := pidKey.(uint64)
+	if !ok {
+		klog.Errorf("failed to convert pid [%v] key to uint64", pid)
+		return nil
+	}
+
+	var value Metadata
+	if err := m.Lookup(&pidKeyUint64, &value); err != nil {
+		klog.Errorf("failed to lookup pid cgroup map: %v", err)
+		return err
+	}
+
+	fmt.Printf("get value: Pod: %s, Container: %s, PID: %d\n",
+		int8ArrayToString(value.Pod),
+		int8ArrayToString(value.Container),
+		value.Pid)
+
+	if err := m.Delete(&pidKeyUint64); err != nil {
+		klog.Errorf("failed to delete pid cgroup map: %v", err)
+		return err
+	}
+
+	klog.Infof("delete pid cgroup map success, pid: %s", pid)
+	// 读取并验证数据（可选）
+	var retrievedValue Metadata
+	if err := m.Lookup(&pidKeyUint64, &retrievedValue); err != nil {
+		klog.Warningf("failed to read from map: %v", err)
+	}
+
+	fmt.Printf("Retrieved value: Pod: %s, Container: %s, PID: %d\n",
+		int8ArrayToString(retrievedValue.Pod),
+		int8ArrayToString(retrievedValue.Container),
+		retrievedValue.Pid)
+
 	return nil
 }
