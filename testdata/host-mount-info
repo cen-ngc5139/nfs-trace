@@ -1,0 +1,2 @@
+106 29 0:193 / /data/mount rw,relatime shared:298 - nfs4 192.168.100.204:/data/nfs rw,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.100.204,local_lock=none,addr=192.168.100.204
+405 29 0:193 / /var/lib/kubelet/pods/04e43c0b-ced6-48a5-be85-83df16c34d7b/volumes/kubernetes.io~nfs/nfs-pv rw,relatime shared:342 - nfs4 192.168.100.204:/data/nfs rw,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.100.204,local_lock=none,addr=192.168.100.204

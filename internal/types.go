@@ -12,6 +12,7 @@ type Flags struct {
 	AllKMods     bool
 	SkipAttach   bool
 	AddFuncs     string
+	LogLevel     int
 }
 
 func (f *Flags) SetFlags() {
@@ -22,6 +23,7 @@ func (f *Flags) SetFlags() {
 	flag.BoolVar(&f.AllKMods, "all-kmods", false, "attach to all available kernel modules")
 	flag.BoolVar(&f.SkipAttach, "skip-attach", false, "skip attaching kprobes")
 	flag.StringVar(&f.AddFuncs, "add-funcs", "", "add functions to be probed by name (ex. rpc_task:1,sk_buff:2)")
+	flag.IntVar(&f.LogLevel, "log-level", 2, "set log level(ex. 0: no log, 1: error, 2: info, 3: debug)")
 }
 
 func (f *Flags) Parse() {
