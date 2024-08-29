@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/cen-ngc5139/nfs-trace/internal"
+	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
 	"github.com/cen-ngc5139/nfs-trace/internal/queue"
 	"github.com/cen-ngc5139/nfs-trace/internal/watch"
 	k8sclient "github.com/cen-ngc5139/nfs-trace/pkg/client"
@@ -25,12 +26,20 @@ import (
 )
 
 func main() {
+	klog.InitFlags(nil)
+	defer klog.Flush()
+
 	flag := internal.Flags{}
 	flag.SetFlags()
 	flag.Parse()
 
 	stopChan := make(chan struct{})
 	defer close(stopChan)
+
+	monitor := metadata.NewMountInfoMonitor(metadata.UpdateMountInfoCache, 5*time.Second)
+
+	monitor.Start()
+	defer monitor.Stop()
 
 	// Remove memory limit for eBPF programs
 	if err := rlimit.RemoveMemlock(); err != nil {
@@ -176,7 +185,7 @@ func main() {
 	// 启动 spark job pod 就绪清理控制器
 	go queue.Source.Export()
 
-	fmt.Printf("Addr \t\t PID \t\t Pod Name \t\t Container ID \t\t Mount \t\t File \n")
+	fmt.Printf("Addr \t\t PID \t\t Pod Name \t\t Container ID \t\t Mount \t\t NFS Mount \t\t File \t\t MountID \n")
 	var event KProbePWRURpcTaskFields
 	for {
 		for {
@@ -192,10 +201,22 @@ func main() {
 			}
 		}
 
+		mountList, err := metadata.ParseMountInfo(fmt.Sprintf("/proc/%d/mountinfo", event.Pid))
+		if err != nil {
+			klog.Errorf("Failed to get mount info: %v", err)
+			continue
+		}
+
+		mountInfo, err := metadata.GetMountInfoFormObj(fmt.Sprintf("%d", event.MountId), mountList)
+		if err != nil {
+			klog.Errorf("Failed to get mount info: %v", err)
+			continue
+		}
+
 		funcName := addr2name.FindNearestSym(event.CallerAddr)
-		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \n",
-			funcName, event.OwnerPid, convertInt8ToString(event.Pod[:]), convertInt8ToString(event.Container[:]),
-			parseFileName(event.Path[:]), parseFileName(event.File[:]))
+		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \t\t%s \t\t%d \n",
+			funcName, event.Pid, convertInt8ToString(event.Pod[:]), convertInt8ToString(event.Container[:]),
+			parseFileName(event.Path[:]), mountInfo.RemoteNFSAddr, parseFileName(event.File[:]), event.MountId)
 
 		select {
 		case <-ctx.Done():

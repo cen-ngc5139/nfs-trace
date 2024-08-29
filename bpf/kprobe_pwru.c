@@ -12,7 +12,8 @@
 
 struct rpc_task_fields
 {
-    int owner_pid;
+    int pid;
+    int mount_id;
     char pod[100];
     char container[100];
     u64 caller_addr;
@@ -96,10 +97,17 @@ static __always_inline int
 kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
 {
     struct rpc_task_fields event = {};
-    char buf[200];
 
     // 获取 PID
-    event.owner_pid = bpf_get_current_pid_tgid() >> 32;
+    event.pid = bpf_get_current_pid_tgid() >> 32;
+
+    // 使用 pid 到 pid_cgroup_map 中搜索
+    struct metadata *metadata = bpf_map_lookup_elem(&pid_cgroup_map, &event.pid);
+    if (metadata)
+    {
+        bpf_probe_read_kernel(&event.pod, sizeof(event.pod), metadata->pod);
+        bpf_probe_read_kernel(&event.container, sizeof(event.container), metadata->container);
+    }
 
     // 从 kiocb 结构体中获取文件路径
     struct file *file = BPF_CORE_READ(iocb, ki_filp);
@@ -135,20 +143,12 @@ kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
     if (!mnt)
         return 0;
 
+    event.mount_id = BPF_CORE_READ(mnt, mnt_id);
     struct dentry *mnt_mountpoint = BPF_CORE_READ(mnt, mnt_mountpoint);
     if (!mnt_mountpoint)
         return 0;
-    struct qstr dname = BPF_CORE_READ(mnt_mountpoint, d_name);
 
     get_full_path(mnt_mountpoint, event.path, sizeof(event.path));
-
-    // 使用 pid 到 pid_cgroup_map 中搜索
-    struct metadata *metadata = bpf_map_lookup_elem(&pid_cgroup_map, &event.owner_pid);
-    if (metadata)
-    {
-        bpf_probe_read_kernel(&event.pod, sizeof(event.pod), metadata->pod);
-        bpf_probe_read_kernel(&event.container, sizeof(event.container), metadata->container);
-    }
 
     // 输出事件到 perf 事件数组
     bpf_perf_event_output(ctx, &rpc_task_map, BPF_F_CURRENT_CPU, &event, sizeof(event));
