@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"time"
@@ -46,6 +47,16 @@ func simulateNFSList(dirname string) {
 	}
 }
 
+const letterBytes = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+func RandStringBytes(n int) string {
+	b := make([]byte, n)
+	for i := range b {
+		b[i] = letterBytes[rand.Intn(len(letterBytes))]
+	}
+	return string(b)
+}
+
 func main() {
 	// 创建基础目录
 	err := os.MkdirAll(baseDir, 0755)
@@ -55,7 +66,7 @@ func main() {
 
 	// 模拟NFS操作
 	for i := 0; i < 50; i++ {
-		simulateNFSWrite(fmt.Sprintf("file_%d.txt", i), fmt.Sprintf("Content of file %d", i))
+		simulateNFSWrite(fmt.Sprintf("file_%d.txt", i), RandStringBytes(20))
 		time.Sleep(time.Second)
 
 		simulateNFSRead(fmt.Sprintf("file_%d.txt", i))
