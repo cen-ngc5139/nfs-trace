@@ -1,0 +1,54 @@
+#!/usr/bin/env bpftrace
+
+#include <linux/fs.h>
+#include <linux/nfs_fs.h>
+
+BEGIN
+{
+    printf("跟踪 NFS IOPS。每5秒输出一次。按 Ctrl-C 结束。\n");
+    @start_ts = nsecs;
+}
+
+tracepoint:nfs:nfs_readpage_done
+/@start_ts/
+{   
+    printf("读取操作");
+    $dev = args->dev;
+    $fileid = args->fileid;
+    $key = ((uint64)$dev << 32) | (uint64)$fileid;
+    @read_count[$key] += 1;
+    printf("读取操作 - 设备: 0x%x, 文件ID: 0x%x, Key: 0x%lx\n", $dev, $fileid, $key);
+}
+
+tracepoint:nfs:nfs_writeback_done
+/@start_ts/
+{
+    $dev = args->dev;
+    $fileid = args->fileid;
+    $key = ((uint64)$dev << 32) | (uint64)$fileid;
+    @write_count[$key] += 1;
+    printf("写入操作 - 设备: 0x%x, 文件ID: 0x%x, Key: 0x%lx\n", $dev, $fileid, $key);
+}
+
+interval:s:5
+{
+    $now = nsecs;
+    $delta = ($now - @start_ts) / 1000000000;
+    printf("\n最近 %d 秒内每个文件的 IOPS：\n", $delta);
+    printf("%-20s %-10s %-10s\n", "DEV:FILEID", "读取次数", "写入次数");
+
+    // 打印读取和写入计数
+    print(@read_count);
+    print(@write_count);
+
+    clear(@read_count);
+    clear(@write_count);
+    @start_ts = $now;
+}
+
+END
+{
+    clear(@start_ts);
+    clear(@read_count);
+    clear(@write_count);
+}

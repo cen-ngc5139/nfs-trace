@@ -216,7 +216,7 @@ func main() {
 		funcName := addr2name.FindNearestSym(event.CallerAddr)
 		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \t\t%s \t\t%d \n",
 			funcName, event.Pid, convertInt8ToString(event.Pod[:]), convertInt8ToString(event.Container[:]),
-			parseFileName(event.Path[:]), mountInfo.RemoteNFSAddr, parseFileName(event.File[:]), event.MountId)
+			mountInfo.LocalMountDir, mountInfo.RemoteNFSAddr, parseFileName(event.File[:]), event.MountId)
 
 		select {
 		case <-ctx.Done():
