@@ -66,11 +66,13 @@ func main() {
 
 	// 模拟NFS操作
 	for i := 0; i < 50; i++ {
-		simulateNFSWrite(fmt.Sprintf("file_%d.txt", i), RandStringBytes(20))
-		time.Sleep(time.Second)
+		for count := 5; count > 0; count-- {
+			simulateNFSWrite(fmt.Sprintf("file_%d.txt", i), RandStringBytes(20))
+			time.Sleep(time.Second)
 
-		simulateNFSRead(fmt.Sprintf("file_%d.txt", i))
-		time.Sleep(time.Second)
+			simulateNFSRead(fmt.Sprintf("file_%d.txt", i))
+			time.Sleep(time.Second)
+		}
 	}
 
 	simulateNFSList(".")

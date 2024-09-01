@@ -146,6 +146,20 @@ func main() {
 	}
 	defer coll.Close()
 
+	// attach tracepoints
+	tracepointProgs := map[string]*ebpf.Program{}
+	for name, prog := range coll.Programs {
+		key, ok := internal.TracepointProgs[name]
+		if !ok {
+			continue
+		}
+
+		tracepointProgs[key] = prog
+	}
+
+	trace := internal.Tracepoint(tracepointProgs)
+	defer trace.Detach()
+
 	// attach kprobes
 	k := internal.NewKprober(ctx, funcs, coll, addr2name, false, 10)
 	defer k.DetachKprobes()

@@ -20,6 +20,19 @@ struct raw_metrics
     u64 write_lat;
 };
 
+struct nfs_file_fields
+{
+    /* The first 8 bytes is not allowed to read */
+    unsigned long pad;
+
+    dev_t dev;
+    u32 fhandle;
+    u64 fileid;
+    loff_t offset;
+    u32 arg_count;
+    u32 res_count;
+};
+
 struct
 {
     __uint(type, BPF_MAP_TYPE_HASH);
@@ -252,38 +265,60 @@ PWRU_ADD_KPROBE(5)
 
 // tracepoint 增加 nfs_readpage_done/nfs_writeback_done 挂载函数用于统计 IOPS
 
-SEC("tracepoint/nfs_readpage_done")
-int trace_nfs_readpage_done(struct pt_regs *ctx)
+SEC("tracepoint/nfs/nfs_readpage_done")
+int nfs_read_done(struct nfs_file_fields *ctx)
 {
-    // u64 dev = PT_REGS_PARM1(ctx);
-    u64 fileid = PT_REGS_PARM3(ctx);
-    // u64 key = ((u64)dev << 32) | fileid;
+    u64 dev = ctx->dev;
+    u64 fileid = ctx->fileid;
+    u64 key = (((u64)dev) << 32) | (fileid & 0xFFFFFFFF);
 
-    bpf_printk("读取操作 - 设备: %d, 文件ID: %d, Key: %d\n", fileid, fileid, fileid);
+    bpf_printk("read process - dev: %llu, file: %llu, Key: %llu\n", dev, fileid, key);
 
-    // u64 *count = bpf_map_lookup_elem(&read_count, &key);
-    // if (count)
-    //     (*count)++;
-    // else
-    //     bpf_map_update_elem(&read_count, &key, &(u64){1}, BPF_ANY);
+    // 还原 dev 和 fileid
+    // u64 restored_dev = (key >> 32) & 0xFFFFFFFF;
+    // u64 restored_fileid = key & 0xFFFFFFFF;
+
+    // bpf_printk("restored dev: %llu, restored fileid: %llu\n", restored_dev, restored_fileid);
+
+    u64 *count = bpf_map_lookup_elem(&read_count, &key);
+    if (count)
+    {
+        __sync_fetch_and_add(count, 1);
+        bpf_map_update_elem(&write_count, &key, count, BPF_ANY);
+    }
+    else
+        bpf_map_update_elem(&write_count, &key, &(u64){1}, BPF_ANY);
+
+    bpf_printk("read count: %llu", count ? *count : 1);
 
     return 0;
 }
 
-SEC("tracepoint/nfs_writeback_done")
-int trace_nfs_writeback_done(struct pt_regs *ctx)
+SEC("tracepoint/nfs/nfs_writeback_done")
+int nfs_write_done(struct nfs_file_fields *ctx)
 {
-    // u64 dev = PT_REGS_PARM1(ctx);
-    u64 fileid = PT_REGS_PARM3(ctx);
-    // u64 key = ((u64)dev << 32) | fileid;
+    u64 dev = ctx->dev;
+    u64 fileid = ctx->fileid;
+    u64 key = (((u64)dev) << 32) | (fileid & 0xFFFFFFFF);
 
-    bpf_printk("写入操作 - 设备: %d, 文件ID: %d, Key: %d\n", fileid, fileid, fileid);
+    bpf_printk("write process - dev: %llu, file: %llu, Key: %llu\n", dev, fileid, key);
 
-    // u64 *count = bpf_map_lookup_elem(&write_count, &key);
-    // if (count)
-    //     (*count)++;
-    // else
-    //     bpf_map_update_elem(&write_count, &key, &(u64){1}, BPF_ANY);
+    // 还原 dev 和 fileid
+    // u64 restored_dev = (key >> 32) & 0xFFFFFFFF;
+    // u64 restored_fileid = key & 0xFFFFFFFF;
+
+    // bpf_printk("restored dev: %llu, restored fileid: %llu\n", restored_dev, restored_fileid);
+
+    u64 *count = bpf_map_lookup_elem(&write_count, &key);
+    if (count)
+    {
+        __sync_fetch_and_add(count, 1);
+        bpf_map_update_elem(&write_count, &key, count, BPF_ANY);
+    }
+    else
+        bpf_map_update_elem(&write_count, &key, &(u64){1}, BPF_ANY);
+
+    bpf_printk("write count: %llu", count ? *count : 1);
 
     return 0;
 }
