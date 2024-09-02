@@ -27,7 +27,7 @@ tracepoint:nfs:nfs_writeback_done
     $fileid = args->fileid;
     $key = ((uint64)$dev << 32) | (uint64)$fileid;
     @write_count[$key] += 1;
-    printf("写入操作 - 设备: 0x%x, 文件ID: 0x%x, Key: 0x%lx\n", $dev, $fileid, $key);
+    printf("写入操作 - 设备: 0x%x, 文件ID: 0x%x, Key: 0x%lx, PID: %d\n", $dev, $fileid, $key, pid);
 }
 
 interval:s:5

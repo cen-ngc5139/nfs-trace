@@ -20,6 +20,26 @@ struct raw_metrics
     u64 write_lat;
 };
 
+struct rpc_task_info
+{
+    u64 timestamp;
+    u32 pid;
+    u32 tid;
+};
+
+struct rpc_task_state
+{
+    /* The first 8 bytes is not allowed to read */
+    unsigned long pad;
+
+    u64 task_id;
+    u64 client_id;
+    const void *action;
+    unsigned long runstate;
+    int status;
+    unsigned short flags;
+} __attribute__((packed));
+
 struct nfs_file_fields
 {
     /* The first 8 bytes is not allowed to read */
@@ -33,10 +53,22 @@ struct nfs_file_fields
     u32 res_count;
 };
 
+struct nfs_init_fields
+{
+    /* The first 8 bytes is not allowed to read */
+    unsigned long pad;
+
+    dev_t dev;
+    u32 fhandle;
+    u64 fileid;
+    loff_t offset;
+    u32 count;
+};
+
 struct
 {
     __uint(type, BPF_MAP_TYPE_HASH);
-    __type(key, u64);
+    __type(key, u32);
     __type(value, u64);
     __uint(max_entries, 1024);
 } link_begin SEC(".maps");
@@ -45,14 +77,14 @@ struct
 {
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, u64);
-    __type(value, u64);
+    __type(value, struct rpc_task_info);
     __uint(max_entries, 1024);
 } waiting_RPC SEC(".maps");
 
 struct
 {
     __uint(type, BPF_MAP_TYPE_HASH);
-    __type(key, u64);
+    __type(key, u32);
     __type(value, u64);
     __uint(max_entries, 1024);
 } link_end SEC(".maps");
@@ -232,7 +264,7 @@ kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
 
     // get_full_path(mnt_mountpoint, event.path, sizeof(event.path));
 
-    // 输出事件到 perf 事件数组
+    // 输出件到 perf 事件数组
     bpf_perf_event_output(ctx, &rpc_task_map, BPF_F_CURRENT_CPU, &event, sizeof(event));
 
     return BPF_OK;
@@ -264,6 +296,75 @@ PWRU_ADD_KPROBE(4)
 PWRU_ADD_KPROBE(5)
 
 // tracepoint 增加 nfs_readpage_done/nfs_writeback_done 挂载函数用于统计 IOPS
+SEC("tracepoint/nfs/nfs_initiate_read")
+int nfs_init_read(struct nfs_init_fields *ctx)
+{
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    u32 tid = (u32)bpf_get_current_pid_tgid();
+    u64 timestamp = bpf_ktime_get_ns();
+
+    bpf_map_update_elem(&link_begin, &pid, &timestamp, BPF_ANY);
+
+    return 0;
+}
+
+SEC("tracepoint/nfs/nfs_initiate_write")
+int nfs_init_write(struct nfs_init_fields *ctx)
+{
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    u32 tid = (u32)bpf_get_current_pid_tgid();
+    u64 timestamp = bpf_ktime_get_ns();
+
+    bpf_map_update_elem(&link_begin, &pid, &timestamp, BPF_ANY);
+
+    return 0;
+}
+
+SEC("tracepoint/sunrpc/rpc_task_begin")
+int rpc_task_begin(struct rpc_task_state *ctx)
+{
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    u32 tid = (u32)bpf_get_current_pid_tgid();
+    u64 rpc_task_id = (u64)ctx->task_id;
+
+    u64 *timestamp = bpf_map_lookup_elem(&link_begin, &pid);
+    if (timestamp)
+    {
+        struct rpc_task_info info = {
+            .timestamp = *timestamp,
+            .tid = tid,
+            .pid = pid};
+        bpf_map_update_elem(&waiting_RPC, &rpc_task_id, &info, BPF_ANY);
+    }
+
+    return 0;
+}
+
+SEC("tracepoint/sunrpc/rpc_task_end")
+int rpc_task_done(struct rpc_task_state *ctx)
+{
+    u64 rpc_task_id = (u64)ctx->task_id;
+    // bpf_printk("rpc_task_done: RPC Task ID = %llu\n", rpc_task_id);
+    struct rpc_task_info *info = bpf_map_lookup_elem(&waiting_RPC, &rpc_task_id);
+    if (info)
+    {
+        // 更新 link_end map
+        int update_result = bpf_map_update_elem(&link_end, &info->pid, &info->timestamp, BPF_ANY);
+        if (update_result != 0)
+        {
+            return 0;
+        }
+
+        // 从 waiting_RPC map 中删除元素
+        int delete_result = bpf_map_delete_elem(&waiting_RPC, &rpc_task_id);
+        if (delete_result != 0)
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
 
 SEC("tracepoint/nfs/nfs_readpage_done")
 int nfs_read_done(struct nfs_file_fields *ctx)
@@ -271,6 +372,7 @@ int nfs_read_done(struct nfs_file_fields *ctx)
     u64 dev = ctx->dev;
     u64 fileid = ctx->fileid;
     u64 key = (((u64)dev) << 32) | (fileid & 0xFFFFFFFF);
+    u32 res_count = ctx->res_count;
 
     bpf_printk("read process - dev: %llu, file: %llu, Key: %llu\n", dev, fileid, key);
 
@@ -287,9 +389,66 @@ int nfs_read_done(struct nfs_file_fields *ctx)
         bpf_map_update_elem(&write_count, &key, count, BPF_ANY);
     }
     else
+    {
         bpf_map_update_elem(&write_count, &key, &(u64){1}, BPF_ANY);
+    }
 
     bpf_printk("read count: %llu", count ? *count : 1);
+
+    return 0;
+}
+
+SEC("kprobe/nfs_writeback_done")
+int kb_nfs_write_d(struct pt_regs *regs)
+{
+    int pid;
+    struct rpc_task *task;
+    struct inode *inode;
+    struct nfs_pgio_header *hdr;
+    u64 current_time = bpf_ktime_get_ns();
+
+    task = (struct rpc_task *)PT_REGS_PARM1(regs);
+
+    // 获取 rpc owner pid
+    pid = BPF_CORE_READ(task, tk_owner);
+    inode = (struct inode *)PT_REGS_PARM3(regs);
+    hdr = (struct nfs_pgio_header *)PT_REGS_PARM2(regs);
+
+    // 获取 dev 和 fileid
+    struct nfs_write_data *wdata = BPF_CORE_READ(task, tk_msg.rpc_argp);
+    u64 dev = BPF_CORE_READ(inode, i_sb, s_dev);
+    u64 fileid = BPF_CORE_READ(inode, i_ino);
+    u64 key = (((u64)dev) << 32) | (fileid & 0xFFFFFFFF);
+    // 获取写入字节数
+    u32 res_count = BPF_CORE_READ(hdr, res.count);
+
+    struct raw_metrics *metrics = bpf_map_lookup_elem(&io_metrics, &key);
+    if (!metrics)
+    {
+        struct raw_metrics new_metrics = {0};
+        bpf_map_update_elem(&io_metrics, &key, &new_metrics, BPF_ANY);
+        metrics = bpf_map_lookup_elem(&io_metrics, &key);
+        if (!metrics)
+            return 0;
+    }
+
+    // 计算写操作延迟
+    u64 *start_time = bpf_map_lookup_elem(&link_end, &pid);
+    if (start_time)
+    {
+        metrics->write_lat += current_time - *start_time;
+        bpf_map_delete_elem(&link_begin, &pid);
+    }
+
+    // 更新写操作计数和字节数
+    __sync_fetch_and_add(&metrics->write_count, 1);
+    __sync_fetch_and_add(&metrics->write_size, res_count);
+
+    // 更新 io_metrics map
+    bpf_map_update_elem(&io_metrics, &key, metrics, BPF_ANY);
+
+    bpf_printk("Write - dev: %llu, file: %llu, bytes: %u, count: %d, total_bytes: %d, latency: %d\n",
+               dev, fileid, res_count, metrics->write_count, metrics->write_size, metrics->write_lat);
 
     return 0;
 }
@@ -297,28 +456,41 @@ int nfs_read_done(struct nfs_file_fields *ctx)
 SEC("tracepoint/nfs/nfs_writeback_done")
 int nfs_write_done(struct nfs_file_fields *ctx)
 {
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    u32 tid = (u32)bpf_get_current_pid_tgid();
     u64 dev = ctx->dev;
     u64 fileid = ctx->fileid;
     u64 key = (((u64)dev) << 32) | (fileid & 0xFFFFFFFF);
+    u32 res_count = ctx->res_count;
+    u64 current_time = bpf_ktime_get_ns();
 
-    bpf_printk("write process - dev: %llu, file: %llu, Key: %llu\n", dev, fileid, key);
-
-    // 还原 dev 和 fileid
-    // u64 restored_dev = (key >> 32) & 0xFFFFFFFF;
-    // u64 restored_fileid = key & 0xFFFFFFFF;
-
-    // bpf_printk("restored dev: %llu, restored fileid: %llu\n", restored_dev, restored_fileid);
-
-    u64 *count = bpf_map_lookup_elem(&write_count, &key);
-    if (count)
+    struct raw_metrics *metrics = bpf_map_lookup_elem(&io_metrics, &key);
+    if (!metrics)
     {
-        __sync_fetch_and_add(count, 1);
-        bpf_map_update_elem(&write_count, &key, count, BPF_ANY);
+        struct raw_metrics new_metrics = {0};
+        metrics = &new_metrics;
     }
-    else
-        bpf_map_update_elem(&write_count, &key, &(u64){1}, BPF_ANY);
 
-    bpf_printk("write count: %llu", count ? *count : 1);
+    // 计算写操作延迟
+    u64 *start_time = bpf_map_lookup_elem(&link_end, &pid);
+    bpf_printk("current time: %llu, pid: %llu \n", current_time, pid);
+    if (start_time)
+    {
+        bpf_printk("start: %llu, end: %llu \n", current_time, *start_time);
+        metrics->write_lat += current_time - *start_time;
+        bpf_map_delete_elem(&link_begin, &pid);
+    }
+
+    // 更新写操作计数
+    metrics->write_count++;
+    // 更新写入字节数
+    metrics->write_size += res_count;
+
+    // 更新 io_metrics map
+    bpf_map_update_elem(&io_metrics, &key, metrics, BPF_ANY);
+
+    bpf_printk("Write - dev: %llu, file: %llu, bytes: %u, count: %d, total_bytes: %d, latency: %d\n",
+               dev, fileid, res_count, metrics->write_count, metrics->write_size, metrics->write_lat);
 
     return 0;
 }

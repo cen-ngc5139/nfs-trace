@@ -13,15 +13,19 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-var TracepointMap = map[string]string{
-	"nfs_readpage_done":  "nfs_read_done",
-	"nfs_writeback_done": "nfs_write_done",
-}
+var (
+	NFSTracepointProgs = map[string]string{
+		//"nfs_read_done":  "nfs_readpage_done",
+		//"nfs_write_done": "nfs_writeback_done",
+		//"nfs_init_read":  "nfs_initiate_read",
+		"nfs_init_write": "nfs_initiate_write",
+	}
 
-var TracepointProgs = map[string]string{
-	"nfs_read_done":  "nfs_readpage_done",
-	"nfs_write_done": "nfs_writeback_done",
-}
+	RPCTracepointProgs = map[string]string{
+		"rpc_task_begin": "rpc_task_begin",
+		"rpc_task_done":  "rpc_task_end",
+	}
+)
 
 type tracing struct {
 	sync.Mutex
@@ -69,8 +73,8 @@ func (t *tracing) addLink(l link.Link) {
 	t.links = append(t.links, l)
 }
 
-func (t *tracing) trace(tracingName string, prog *ebpf.Program) error {
-	tracing, err := link.Tracepoint("nfs", tracingName, prog, nil)
+func (t *tracing) trace(group, tracingName string, prog *ebpf.Program) error {
+	tracing, err := link.Tracepoint(group, tracingName, prog, nil)
 	if err != nil {
 		return fmt.Errorf("failed to attach tracing: %w", err)
 	}
@@ -80,13 +84,13 @@ func (t *tracing) trace(tracingName string, prog *ebpf.Program) error {
 	return nil
 }
 
-func Tracepoint(progs map[string]*ebpf.Program) *tracing {
-	log.Printf("Attaching TracePoint progs...\n")
+func Tracepoint(group string, progs map[string]*ebpf.Program) *tracing {
+	log.Printf("Attaching Gourp %s TracePoint progs...\n", group)
 
 	var t tracing
 	for tragename, prog := range progs {
-		if err := t.trace(tragename, prog); err != nil {
-			log.Fatalf("failed to trace TracePoint progs: %v", err)
+		if err := t.trace(group, tragename, prog); err != nil {
+			log.Fatalf("failed to trace Group %s TracePoint progs: %v", group, err)
 		}
 	}
 
