@@ -146,23 +146,40 @@ func main() {
 	}
 	defer coll.Close()
 
-	// attach tracepoints
-	tracepointProgs := map[string]*ebpf.Program{}
+	// attach nfs tracepoints
+	nfsTracepointProgs := map[string]*ebpf.Program{}
 	for name, prog := range coll.Programs {
-		key, ok := internal.TracepointProgs[name]
+		key, ok := internal.NFSTracepointProgs[name]
 		if !ok {
 			continue
 		}
 
-		tracepointProgs[key] = prog
+		nfsTracepointProgs[key] = prog
 	}
 
-	trace := internal.Tracepoint(tracepointProgs)
+	trace := internal.Tracepoint("nfs", nfsTracepointProgs)
 	defer trace.Detach()
+
+	// attach rpc tracepoints
+	rpcTracepointProgs := map[string]*ebpf.Program{}
+	for name, prog := range coll.Programs {
+		key, ok := internal.RPCTracepointProgs[name]
+		if !ok {
+			continue
+		}
+
+		rpcTracepointProgs[key] = prog
+	}
+
+	rpcTrace := internal.Tracepoint("sunrpc", rpcTracepointProgs)
+	defer rpcTrace.Detach()
 
 	// attach kprobes
 	k := internal.NewKprober(ctx, funcs, coll, addr2name, false, 10)
 	defer k.DetachKprobes()
+
+	c := internal.NewCustomFuncsKprober(internal.NFSKprobeProgs, coll)
+	defer c.DetachKprobes()
 
 	log.Println("Listening for events..")
 

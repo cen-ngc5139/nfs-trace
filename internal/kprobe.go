@@ -32,6 +32,12 @@ type Kprobe struct {
 	Prog      *ebpf.Program
 }
 
+var (
+	NFSKprobeProgs = map[string]string{
+		"kb_nfs_write_d": "nfs_writeback_done",
+	}
+)
+
 func attachKprobes(ctx context.Context, bar *pb.ProgressBar, kprobes []Kprobe) (links []link.Link, ignored int, err error) {
 	links = make([]link.Link, 0, len(kprobes))
 	for _, kprobe := range kprobes {
@@ -250,18 +256,14 @@ func NewKprober(ctx context.Context, funcs Funcs, coll *ebpf.Collection, a2n Add
 	return &k
 }
 
-func NewNonSkbFuncsKprober(nonSkbFuncs []string, funcs Funcs, coll *ebpf.Collection) *kprober {
+func NewCustomFuncsKprober(manifest map[string]string, coll *ebpf.Collection) *kprober {
 	var k kprober
-	k.kprobeBatch = uint(len(nonSkbFuncs))
+	k.kprobeBatch = uint(len(manifest))
 
-	for _, fn := range nonSkbFuncs {
-		if _, ok := funcs[fn]; ok {
-			continue
-		}
-
-		kp, err := link.Kprobe(fn, coll.Programs["kprobe_skb_by_stackid"], nil)
+	for progName, targetName := range manifest {
+		kp, err := link.Kprobe(targetName, coll.Programs[progName], nil)
 		if err != nil {
-			log.Fatalf("Opening kprobe %s: %s\n", fn, err)
+			log.Fatalf("Opening kprobe %s: %s\n", targetName, err)
 		}
 
 		k.links = append(k.links, kp)
