@@ -5,14 +5,16 @@ import (
 )
 
 type Flags struct {
-	FilterFunc   string
-	FilterStruct string
-	ModelBTF     string
-	KernelBTF    string
-	AllKMods     bool
-	SkipAttach   bool
-	AddFuncs     string
-	LogLevel     int
+	FilterFunc            string
+	FilterStruct          string
+	ModelBTF              string
+	KernelBTF             string
+	AllKMods              bool
+	SkipAttach            bool
+	AddFuncs              string
+	LogLevel              int
+	OutputDetails         bool
+	OutPerformanceMetrics bool
 }
 
 func (f *Flags) SetFlags() {
@@ -24,6 +26,8 @@ func (f *Flags) SetFlags() {
 	flag.BoolVar(&f.SkipAttach, "skip-attach", false, "skip attaching kprobes")
 	flag.StringVar(&f.AddFuncs, "add-funcs", "", "add functions to be probed by name (ex. rpc_task:1,sk_buff:2)")
 	flag.IntVar(&f.LogLevel, "log-level", 2, "set log level(ex. 0: no log, 1: error, 2: info, 3: debug)")
+	flag.BoolVar(&f.OutputDetails, "output-details", false, "output details of the probed functions")
+	flag.BoolVar(&f.OutPerformanceMetrics, "output-metrics", false, "output performance metrics")
 }
 
 func (f *Flags) Parse() {

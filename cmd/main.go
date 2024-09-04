@@ -1,26 +1,26 @@
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"github.com/cen-ngc5139/nfs-trace/internal"
+	ebpfbinary "github.com/cen-ngc5139/nfs-trace/internal/binary"
 	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
+	"github.com/cen-ngc5139/nfs-trace/internal/output"
 	"github.com/cen-ngc5139/nfs-trace/internal/queue"
+	"github.com/cen-ngc5139/nfs-trace/internal/server"
 	"github.com/cen-ngc5139/nfs-trace/internal/watch"
 	k8sclient "github.com/cen-ngc5139/nfs-trace/pkg/client"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/btf"
-	"github.com/cilium/ebpf/perf"
 	"github.com/cilium/ebpf/rlimit"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
 	"log"
 	"os"
 	"os/signal"
-	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -126,7 +126,7 @@ func main() {
 
 	// load bpf spec
 	var bpfSpec *ebpf.CollectionSpec
-	bpfSpec, err = LoadKProbePWRU()
+	bpfSpec, err = ebpfbinary.LoadKProbePWRU()
 	if err != nil {
 		log.Fatalf("Failed to load bpf spec: %v", err)
 	}
@@ -192,15 +192,6 @@ func main() {
 		}
 	}()
 
-	events := coll.Maps["rpc_task_map"]
-	// Set up a perf reader to read events from the eBPF program
-	rd, err := perf.NewReader(events, os.Getpagesize())
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Creating perf reader failed: %v\n", err)
-		os.Exit(1)
-	}
-	defer rd.Close()
-
 	// 初始化 k8s 客户端
 	mgr := k8sclient.NewK8sManager()
 	if err = mgr.CreateClient(); err != nil {
@@ -216,86 +207,26 @@ func main() {
 	// 启动 spark job pod 就绪清理控制器
 	go queue.Source.Export()
 
-	fmt.Printf("Addr \t\t PID \t\t Pod Name \t\t Container ID \t\t Mount \t\t NFS Mount \t\t File \t\t MountID \n")
-	var event KProbePWRURpcTaskFields
-	for {
-		for {
-			if err := parseEvent(rd, &event); err == nil {
-				break
-			}
+	s := server.NewServer()
 
-			select {
-			case <-ctx.Done():
-				return
-			case <-time.After(time.Microsecond):
-				continue
-			}
+	var wg sync.WaitGroup
+	wg.Add(1)
+
+	// 在新的 goroutine 中启动服务器
+	go func() {
+		defer wg.Done()
+		if err := s.Start(); err != nil {
+			log.Printf("Server stopped: %v", err)
 		}
+	}()
 
-		mountList, err := metadata.ParseMountInfo(fmt.Sprintf("/proc/%d/mountinfo", event.Pid))
-		if err != nil {
-			klog.Errorf("Failed to get mount info: %v", err)
-			continue
-		}
-
-		mountInfo, err := metadata.GetMountInfoFormObj(fmt.Sprintf("%d", event.MountId), mountList)
-		if err != nil {
-			klog.Errorf("Failed to get mount info: %v", err)
-			continue
-		}
-
-		funcName := addr2name.FindNearestSym(event.CallerAddr)
-		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \t\t%s \t\t%d \n",
-			funcName, event.Pid, convertInt8ToString(event.Pod[:]), convertInt8ToString(event.Container[:]),
-			mountInfo.LocalMountDir, mountInfo.RemoteNFSAddr, parseFileName(event.File[:]), event.MountId)
-
-		select {
-		case <-ctx.Done():
-			return
-		default:
-		}
-	}
-}
-
-func parseEvent(rd *perf.Reader, event *KProbePWRURpcTaskFields) error {
-	record, err := rd.Read()
-	if err != nil {
-		return err
+	// Set up a perf reader to read events from the eBPF program
+	if flag.OutPerformanceMetrics {
+		output.ProcessMetrics(coll, ctx)
+	} else {
+		output.ProcessEvents(coll, ctx, addr2name)
 	}
 
-	if record.RawSample == nil {
-		return errors.New("record.RawSample is nil")
-	}
-
-	if err := binary.Read(bytes.NewBuffer(record.RawSample), binary.LittleEndian, event); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func convertInt8ToString(bs []int8) string {
-	ba := make([]byte, 0, len(bs))
-	for _, b := range bs {
-		ba = append(ba, byte(b))
-	}
-	return string(ba)
-}
-
-func parseFileName(bs []int8) string {
-	ba := make([]byte, 0, len(bs))
-	for _, b := range bs {
-		ba = append(ba, byte(b))
-	}
-	return strings.ReplaceAll(filterNonASCII(ba), "//", "/")
-}
-
-func filterNonASCII(data []byte) string {
-	var sb strings.Builder
-	for _, b := range data {
-		if b >= 32 && b <= 126 { // 只保留可见 ASCII 字符
-			sb.WriteByte(b)
-		}
-	}
-	return sb.String()
+	// 等待服务器 goroutine 结束
+	wg.Wait()
 }

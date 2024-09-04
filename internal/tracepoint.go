@@ -15,9 +15,7 @@ import (
 
 var (
 	NFSTracepointProgs = map[string]string{
-		//"nfs_read_done":  "nfs_readpage_done",
-		//"nfs_write_done": "nfs_writeback_done",
-		//"nfs_init_read":  "nfs_initiate_read",
+		"nfs_init_read":  "nfs_initiate_read",
 		"nfs_init_write": "nfs_initiate_write",
 	}
 

@@ -12,7 +12,13 @@ var PodContainerPIDMap *sync.Map
 // value: metadata.MountInfo
 var MountInfoMap *sync.Map
 
+// NFSPerformanceMap 保存nfs地址和性能信息的映射关系
+// key: devID+fileID
+// value: binary.KProbePWRURawMetrics
+var NFSPerformanceMap *sync.Map
+
 func init() {
 	PodContainerPIDMap = new(sync.Map)
 	MountInfoMap = new(sync.Map)
+	NFSPerformanceMap = new(sync.Map)
 }
