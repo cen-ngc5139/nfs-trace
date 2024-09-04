@@ -11,11 +11,12 @@ import (
 )
 
 const (
-	baseDir = "/data/mount"
+	baseNFSMountDir = "/data/mount"
+	baseLocalDir    = "/data/nfs"
 )
 
 func simulateNFSRead(filename string) {
-	path := filepath.Join(baseDir, filename)
+	path := filepath.Join(baseNFSMountDir, filename)
 	content, err := os.ReadFile(path)
 	if err != nil {
 		log.Printf("Error reading file %s: %v", filename, err)
@@ -24,8 +25,8 @@ func simulateNFSRead(filename string) {
 	log.Printf("Read %d bytes from %s", len(content), filename)
 }
 
-func simulateNFSWrite(filename string, content string) {
-	path := filepath.Join(baseDir, filename)
+func simulateNFSWrite(fPath, filename string, content string) {
+	path := filepath.Join(fPath, filename)
 	err := os.WriteFile(path, []byte(content), 0644)
 	if err != nil {
 		log.Printf("Error writing to file %s: %v", filename, err)
@@ -35,7 +36,7 @@ func simulateNFSWrite(filename string, content string) {
 }
 
 func simulateNFSList(dirname string) {
-	path := filepath.Join(baseDir, dirname)
+	path := filepath.Join(baseNFSMountDir, dirname)
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
 		log.Printf("Error listing directory %s: %v", dirname, err)
@@ -59,7 +60,7 @@ func RandStringBytes(n int) string {
 
 func main() {
 	// 创建基础目录
-	err := os.MkdirAll(baseDir, 0755)
+	err := os.MkdirAll(baseNFSMountDir, 0755)
 	if err != nil {
 		log.Fatalf("Error creating base directory: %v", err)
 	}
@@ -67,10 +68,13 @@ func main() {
 	// 模拟NFS操作
 	for i := 0; i < 50; i++ {
 		for count := 5; count > 0; count-- {
-			simulateNFSWrite(fmt.Sprintf("file_%d.txt", i), RandStringBytes(20))
+			simulateNFSWrite(baseLocalDir, fmt.Sprintf("file_%d.txt", i), RandStringBytes(20))
 			time.Sleep(time.Second)
 
 			simulateNFSRead(fmt.Sprintf("file_%d.txt", i))
+			time.Sleep(time.Second)
+
+			simulateNFSWrite(baseNFSMountDir, fmt.Sprintf("file_%d.txt", i), RandStringBytes(20))
 			time.Sleep(time.Second)
 		}
 	}
