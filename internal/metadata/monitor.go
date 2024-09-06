@@ -2,7 +2,8 @@ package metadata
 
 import (
 	"bufio"
-	"log"
+	"github.com/cen-ngc5139/nfs-trace/internal/log"
+
 	"os"
 	"strings"
 	"sync"
@@ -78,12 +79,12 @@ func (m *MountInfoMonitor) poll() {
 func (m *MountInfoMonitor) checkMountInfo() {
 	mountInfo, err := ParseMountInfo("/proc/self/mountinfo")
 	if err != nil {
-		log.Printf("解析 mountinfo 失败: %v", err)
+		log.Errorf("解析 mountinfo 失败: %v", err)
 		return
 	}
 
 	if !compareMountInfo(m.lastMountInfo, mountInfo) {
-		log.Println("检测到 mountinfo 变化")
+		log.Info("检测到 mountinfo 变化")
 		m.callback(mountInfo)
 		m.lastMountInfo = mountInfo
 	}

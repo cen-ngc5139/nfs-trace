@@ -28,6 +28,10 @@ func (f *Flags) SetFlags() {
 	flag.IntVar(&f.LogLevel, "log-level", 2, "set log level(ex. 0: no log, 1: error, 2: info, 3: debug)")
 	flag.BoolVar(&f.OutputDetails, "output-details", false, "output details of the probed functions")
 	flag.BoolVar(&f.OutPerformanceMetrics, "output-metrics", false, "output performance metrics")
+	// 禁用 klog 的默认输出
+	flag.Set("logtostderr", "false")
+	flag.Set("alsologtostderr", "false")
+	flag.Set("log_file", "")
 }
 
 func (f *Flags) Parse() {

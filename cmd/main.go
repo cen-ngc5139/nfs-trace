@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/cen-ngc5139/nfs-trace/internal"
 	ebpfbinary "github.com/cen-ngc5139/nfs-trace/internal/binary"
+	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
 	"github.com/cen-ngc5139/nfs-trace/internal/output"
 	"github.com/cen-ngc5139/nfs-trace/internal/queue"
@@ -17,7 +18,7 @@ import (
 	"github.com/cilium/ebpf/rlimit"
 	"golang.org/x/sys/unix"
 	"k8s.io/klog/v2"
-	"log"
+
 	"os"
 	"os/signal"
 	"sync"
@@ -26,8 +27,10 @@ import (
 )
 
 func main() {
+
 	klog.InitFlags(nil)
-	defer klog.Flush()
+	log.InitLogger("./log/", 100, 5, 30)
+	// defer klog.Flush()
 
 	flag := internal.Flags{}
 	flag.SetFlags()
@@ -58,6 +61,7 @@ func main() {
 		klog.Fatalf("failed to set temporary rlimit: %s", err)
 	}
 
+	// 获取 BPF 程序的入口函数名
 	var btfSpec *btf.Spec
 	var err error
 	if flag.KernelBTF != "" {
@@ -75,6 +79,7 @@ func main() {
 		flag.ModelBTF = "/sys/kernel/btf"
 	}
 
+	// 获取所有内核模块
 	kmods := make([]string, 0)
 	if flag.AllKMods {
 		// get all kernel modules
@@ -90,6 +95,7 @@ func main() {
 		}
 	}
 
+	// 获取需要添加的函数
 	var addFuncs internal.Funcs
 	addFuncs = make(map[string]int)
 	if flag.AddFuncs != "" {
@@ -181,25 +187,25 @@ func main() {
 	c := internal.NewCustomFuncsKprober(internal.NFSKprobeProgs, coll)
 	defer c.DetachKprobes()
 
-	log.Println("Listening for events..")
+	log.Info("Listening for events..")
 
 	defer func() {
 		select {
 		case <-ctx.Done():
-			log.Println("Received signal, exiting program..")
+			log.Info("Received signal, exiting program..")
 		default:
-			log.Printf("exiting program..\n")
+			log.Info("exiting program..\n")
 		}
 	}()
 
 	// 初始化 k8s 客户端
 	mgr := k8sclient.NewK8sManager()
 	if err = mgr.CreateClient(); err != nil {
-		log.Panicf("Create k8s client failed, error :%v", err)
+		log.Fatalf("Create k8s client failed, error :%v", err)
 	}
 
 	if err = watch.SyncPodStatus(mgr, stopChan); err != nil {
-		log.Panicf("Sync pod status failed, error :%v", err)
+		log.Fatalf("Sync pod status failed, error :%v", err)
 	}
 
 	pidMap := coll.Maps["pid_cgroup_map"]
@@ -216,7 +222,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		if err := s.Start(); err != nil {
-			log.Printf("Server stopped: %v", err)
+			log.Errorf("Server stopped: %v", err)
 		}
 	}()
 

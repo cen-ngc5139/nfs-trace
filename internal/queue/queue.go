@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"github.com/cen-ngc5139/nfs-trace/internal/cache"
 	"github.com/cen-ngc5139/nfs-trace/internal/cri"
+	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"github.com/cilium/ebpf"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
-	"log"
+
 	"strings"
 	"time"
 )
@@ -239,7 +240,7 @@ func updatePidCgroupMap(m *ebpf.Map, containerID, pod, container string) error {
 	}
 
 	// 将 [100]int8 转换回字符串进行打印
-	fmt.Printf("Retrieved value: Pod: %s, Container: %s, PID: %d\n",
+	log.Infof("Retrieved value: Pod: %s, Container: %s, PID: %d\n",
 		int8ArrayToString(retrievedValue.Pod),
 		int8ArrayToString(retrievedValue.Container),
 		retrievedValue.Pid)

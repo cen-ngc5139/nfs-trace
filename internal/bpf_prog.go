@@ -15,6 +15,7 @@ var errNotFound = errors.New("not found")
 
 type BpfProgName2Addr map[string]uint64
 
+// listBpfProgs 列出所有指定类型的 BPF 程序
 func listBpfProgs(typ ebpf.ProgramType) ([]*ebpf.Program, error) {
 	var (
 		id  ebpf.ProgramID
@@ -42,6 +43,7 @@ func listBpfProgs(typ ebpf.ProgramType) ([]*ebpf.Program, error) {
 	return progs, nil
 }
 
+// getEntryFuncName 获取 BPF 程序的入口函数名
 func getEntryFuncName(prog *ebpf.Program) (string, string, error) {
 	info, err := prog.Info()
 	if err != nil {

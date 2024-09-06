@@ -3,6 +3,8 @@ package server
 import (
 	"context"
 	"errors"
+	"github.com/cen-ngc5139/nfs-trace/internal/log"
+	"io"
 	"k8s.io/klog/v2"
 	"net/http"
 	"os"
@@ -13,6 +15,14 @@ import (
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 )
+
+// ginLogger 实现了 io.Writer 接口
+type ginLogger struct{}
+
+func (g *ginLogger) Write(p []byte) (n int, err error) {
+	log.Info(string(p)) // 使用您的日志包记录 Gin 的日志
+	return len(p), nil
+}
 
 type Server struct {
 	router *gin.Engine
@@ -26,7 +36,16 @@ func Ping(c *gin.Context) {
 }
 
 func NewServer(middleware ...gin.HandlerFunc) *Server {
-	r := gin.Default()
+	// 设置 Gin 的模式为发布模式
+	gin.SetMode(gin.ReleaseMode)
+
+	// 创建一个新的 Gin 引擎，不使用默认的中间件
+	r := gin.New()
+
+	// 使用自定义的日志输出
+	r.Use(gin.LoggerWithWriter(io.MultiWriter(&ginLogger{})))
+	r.Use(gin.Recovery()) // 添加 Recovery 中间件
+
 	r.GET("/ping", Ping)
 
 	InitProbe(r)
@@ -72,8 +91,9 @@ func (s *Server) Start() error {
 }
 
 func InitProbe(r *gin.Engine) {
-	r.GET("/readiness", readiness())
-	r.GET("/liveness", liveness())
+	r.GET("/healthz", func(c *gin.Context) {
+		c.String(200, "ok")
+	})
 }
 
 func liveness() gin.HandlerFunc {
