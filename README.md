@@ -1,38 +1,99 @@
-# nfs-trace
+# NFS Trace
 
-尝试追踪 NFS 包在内核中的调用路径
+NFS Trace is a powerful tool designed to monitor and analyze NFS (Network File System) operations using eBPF technology. It provides real-time insights into NFS performance metrics and helps diagnose issues in distributed file systems.
 
-## 命令行参数
+## Features
 
-以下是 `nfs-trace` 支持的命令行参数：
+- Real-time monitoring of NFS read and write operations
+- Performance metrics collection (IOPS, latency, throughput)
+- Kubernetes integration for pod-level NFS usage tracking
+- Prometheus metrics export for easy integration with monitoring systems
+- Customizable function probing and filtering
 
-- `--filter-struct`：指定要过滤的结构体名称。例如：`--filter-struct=rpc_task`
-- `--all-kmods`：指定是否获取所有内核模块。接受 `true` 或 `false`。例如：`--all-kmods=true`
-- `--skip-attach`：指定是否跳过附加 kprobes，仅打印内核函数名称以及入参索引。接受 `true` 或 `false`。例如：`--skip-attach=true`
-- `--filter-func`：指定要过滤的函数名称。例如：`--filter-func="^nfs.*"`
-- `--kernel-btf`：指定内核 BTF 文件。例如：`--kernel-btf=/sys/kernel/btf/vmlinux`
-- `--model-btf-dir`：指定内核模块 BTF 目录。例如：`--model-btf-dir=/sys/kernel/btf`
+## Prerequisites
 
-## 使用示例
+- Linux kernel 6.8.0+ with BTF support
+- Go 1.22+
+- Kubernetes cluster (for K8s integration)
 
-### 搜索内核函数
-以下命令是用于搜索入参参数结构体为 `kiocb` 的内核函数名称，同时会答应该参数的位置索引：
-```sh
-# ./cmd/nfs-trace-linux-amd64 -filter-struct=kiocb -skip-attach=true -all-kmods=true -filter-func="^nfs.*"
-I0815 02:15:41.692055    9232 filter.go:17] nfs_swap_rw 1
-I0815 02:15:41.692222    9232 filter.go:17] nfs_file_read 1
-I0815 02:15:41.692239    9232 filter.go:17] nfs_file_write 1
-I0815 02:15:41.692249    9232 filter.go:17] nfs_file_direct_read 1
-I0815 02:15:41.692261    9232 filter.go:17] nfs_file_direct_write 1
-I0815 02:15:41.692338    9232 main.go:85] Skipping attaching kprobes
+## Installation
+
+1. Clone the repository:
+   ```
+   git clone https://github.com/your-username/nfs-trace.git
+   cd nfs-trace
+   ```
+
+2. Build the project:
+   ```
+   make build
+   ```
+
+## Usage
+
+Run NFS Trace with default settings:
+
+```
+./nfs-trace
 ```
 
-### 自定义 BTF 文件
-```shell
-# ./cmd/nfs-trace-linux-amd64 -kernel-btf=/data/gb/external.btf -filter-struct=kiocb -filter-func="^nfs.*"
+For more advanced usage and configuration options:
+
+```
+./nfs-trace --help
 ```
 
-### 自定义 BTF 目录
-```shell
-# ./cmd/nfs-trace-linux-amd64 -model-btf-dir=/data/btf -filter-struct=kiocb -all-kmods=true -filter-func="^nfs.*"
+## Configuration
+
+NFS Trace supports various command-line flags for customization. Some key options include:
+
+
+```20:35:internal/types.go
+func (f *Flags) SetFlags() {
+	flag.StringVar(&f.FilterFunc, "filter-func", "", "filter kernel functions to be probed by name (exact match, supports RE2 regular expression)")
+	flag.StringVar(&f.FilterStruct, "filter-struct", "", "filter kernel structs to be probed by name (ex. sk_buff/rpc_task)")
+	flag.StringVar(&f.KernelBTF, "kernel-btf", "", "specify kernel BTF file")
+	flag.StringVar(&f.ModelBTF, "model-btf-dir", "", "specify kernel model BTF dir")
+	flag.BoolVar(&f.AllKMods, "all-kmods", false, "attach to all available kernel modules")
+	flag.BoolVar(&f.SkipAttach, "skip-attach", false, "skip attaching kprobes")
+	flag.StringVar(&f.AddFuncs, "add-funcs", "", "add functions to be probed by name (ex. rpc_task:1,sk_buff:2)")
+	flag.IntVar(&f.LogLevel, "log-level", 2, "set log level(ex. 0: no log, 1: error, 2: info, 3: debug)")
+	flag.BoolVar(&f.OutputDetails, "output-details", false, "output details of the probed functions")
+	flag.BoolVar(&f.OutPerformanceMetrics, "output-metrics", false, "output performance metrics")
+	// 禁用 klog 的默认输出
+	flag.Set("logtostderr", "false")
+	flag.Set("alsologtostderr", "false")
+	flag.Set("log_file", "")
+}
 ```
+
+
+## Metrics
+
+NFS Trace collects and exports the following metrics:
+
+- NFS read/write count
+- NFS read/write size
+- NFS read/write latencies
+
+These metrics are available via Prometheus endpoint at `/metrics`.
+
+## Kubernetes Integration
+
+NFS Trace can be deployed as a DaemonSet in your Kubernetes cluster to monitor NFS operations across all nodes. It provides pod-level visibility into NFS usage.
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the Dual BSD/GPL License - see the [LICENSE](LICENSE) file for details.
+
+## Acknowledgments
+
+- [Cilium eBPF](https://github.com/cilium/ebpf) library
+- [Gin Web Framework](https://github.com/gin-gonic/gin)
+- [Prometheus Go Client](https://github.com/prometheus/client_golang)
+
+For more information on the implementation details, please refer to the source code and comments within the project.
