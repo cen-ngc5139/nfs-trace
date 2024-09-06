@@ -1,7 +1,6 @@
 package queue
 
 import (
-	"fmt"
 	"github.com/cen-ngc5139/nfs-trace/internal/cache"
 	"github.com/cen-ngc5139/nfs-trace/internal/cri"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
@@ -266,7 +265,7 @@ func deletePidCgroupMap(m *ebpf.Map, pid string) error {
 		return err
 	}
 
-	fmt.Printf("get value: Pod: %s, Container: %s, PID: %d\n",
+	log.Infof("get value: Pod: %s, Container: %s, PID: %d\n",
 		int8ArrayToString(value.Pod),
 		int8ArrayToString(value.Container),
 		value.Pid)
@@ -283,7 +282,7 @@ func deletePidCgroupMap(m *ebpf.Map, pid string) error {
 		klog.Warningf("failed to read from map: %v", err)
 	}
 
-	fmt.Printf("Retrieved value: Pod: %s, Container: %s, PID: %d\n",
+	log.Infof("Retrieved value: Pod: %s, Container: %s, PID: %d\n",
 		int8ArrayToString(retrievedValue.Pod),
 		int8ArrayToString(retrievedValue.Container),
 		retrievedValue.Pid)

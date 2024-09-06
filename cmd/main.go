@@ -46,7 +46,7 @@ func main() {
 
 	// Remove memory limit for eBPF programs
 	if err := rlimit.RemoveMemlock(); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to remove memlock limit: %v\n", err)
+		log.Fatalf("Failed to remove memlock limit: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -58,7 +58,7 @@ func main() {
 		Cur: 8192,
 		Max: 8192,
 	}); err != nil {
-		klog.Fatalf("failed to set temporary rlimit: %s", err)
+		log.Fatalf("failed to set temporary rlimit: %s", err)
 	}
 
 	// 获取 BPF 程序的入口函数名
@@ -72,7 +72,7 @@ func main() {
 	}
 
 	if err != nil {
-		klog.Fatalf("Failed to load BTF spec: %s", err)
+		log.Fatalf("Failed to load BTF spec: %s", err)
 	}
 
 	if len(flag.ModelBTF) == 0 {
@@ -116,7 +116,7 @@ func main() {
 	funcs.ToString()
 
 	if flag.SkipAttach {
-		klog.Info("Skipping attaching kprobes")
+		log.Info("Skipping attaching kprobes")
 		return
 	}
 
