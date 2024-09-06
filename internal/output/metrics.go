@@ -33,7 +33,7 @@ func ProcessMetrics(coll *ebpf.Collection, ctx context.Context) {
 			for iter.Next(&nextKey, &event) {
 				devID, fileID := parseKey(nextKey)
 				// TODO：此处 fileID 为 inode id，该 id 为 NFS server 侧的 inode id ，后续需要实现从 server inode id 获取文件的目录路径
-				fmt.Printf("%d \t\t%d \t\t%d \t\t%d \t\t%d \t\t%d \n",
+				fmt.Printf("%d \t\t%d \t\t%d \t\t\t%d \t\t\t%d \t\t\t%d \n",
 					devID, fileID, event.ReadCount, event.WriteCount, event.ReadSize, event.WriteSize)
 
 				// 持久化数据到 cache.NFSPerformanceMap 缓存中
