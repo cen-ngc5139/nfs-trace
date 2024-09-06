@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -13,6 +14,12 @@ import (
 const (
 	baseNFSMountDir = "/data/mount"
 	baseLocalDir    = "/data/nfs"
+)
+
+var (
+	scenario     = flag.String("scenario", "default", "选择模拟场景 (default, heavy_write, heavy_read, mixed)")
+	duration     = flag.Duration("duration", 5*time.Minute, "模拟持续时间")
+	waitInterval = flag.Duration("wait", 500*time.Millisecond, "操作间等待时间")
 )
 
 func simulateNFSRead(filename string) {
@@ -59,28 +66,78 @@ func RandStringBytes(n int) string {
 }
 
 func main() {
-	// 创建基础目录
-	err := os.MkdirAll(baseNFSMountDir, 0755)
-	if err != nil {
-		log.Fatalf("Error creating base directory: %v", err)
+	flag.Parse()
+
+	log.Printf("开始执行 %s 场景，持续时间 %v，操作间隔 %v\n", *scenario, *duration, *waitInterval)
+
+	switch *scenario {
+	case "default":
+		runDefaultScenario(*duration, *waitInterval)
+	case "heavy_write":
+		runHeavyWriteScenario(*duration, *waitInterval)
+	case "heavy_read":
+		runHeavyReadScenario(*duration, *waitInterval)
+	case "mixed":
+		runMixedScenario(*duration, *waitInterval)
+	default:
+		log.Fatalf("未知场景: %s", *scenario)
 	}
 
-	// 模拟NFS操作
-	for i := 0; i < 50; i++ {
-		for count := 5; count > 0; count-- {
+	log.Println("NFS 模拟完成")
+}
+
+func runDefaultScenario(duration, waitInterval time.Duration) {
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		for i := 0; i < 10; i++ {
 			simulateNFSWrite(baseLocalDir, fmt.Sprintf("file_%d.txt", i), RandStringBytes(20))
-			time.Sleep(time.Second)
+			time.Sleep(waitInterval)
 
 			simulateNFSRead(fmt.Sprintf("file_%d.txt", i))
-			time.Sleep(time.Second)
+			time.Sleep(waitInterval)
 
 			simulateNFSWrite(baseNFSMountDir, fmt.Sprintf("file_%d.txt", i), RandStringBytes(20))
-			time.Sleep(time.Second)
+			time.Sleep(waitInterval)
 		}
 	}
+}
 
-	simulateNFSList(".")
-	time.Sleep(time.Second)
+func runHeavyWriteScenario(duration, waitInterval time.Duration) {
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		for i := 0; i < 20; i++ {
+			simulateNFSWrite(baseNFSMountDir, fmt.Sprintf("heavy_write_%d.txt", i), RandStringBytes(1024))
+			time.Sleep(waitInterval)
+		}
+	}
+}
 
-	log.Println("NFS simulation completed")
+func runHeavyReadScenario(duration, waitInterval time.Duration) {
+	// 先创建一些文件
+	for i := 0; i < 20; i++ {
+		simulateNFSWrite(baseNFSMountDir, fmt.Sprintf("heavy_read_%d.txt", i), RandStringBytes(1024))
+	}
+
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		for i := 0; i < 20; i++ {
+			simulateNFSRead(fmt.Sprintf("heavy_read_%d.txt", i))
+			time.Sleep(waitInterval)
+		}
+	}
+}
+
+func runMixedScenario(duration, waitInterval time.Duration) {
+	startTime := time.Now()
+	for time.Since(startTime) < duration {
+		// 混合读写操作
+		for i := 0; i < 10; i++ {
+			if rand.Float32() < 0.6 {
+				simulateNFSRead(fmt.Sprintf("mixed_%d.txt", i))
+			} else {
+				simulateNFSWrite(baseNFSMountDir, fmt.Sprintf("mixed_%d.txt", i), RandStringBytes(512))
+			}
+			time.Sleep(waitInterval)
+		}
+	}
 }

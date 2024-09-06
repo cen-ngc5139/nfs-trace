@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/cen-ngc5139/nfs-trace/internal"
 	ebpfbinary "github.com/cen-ngc5139/nfs-trace/internal/binary"
+	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/perf"
@@ -18,8 +19,7 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name interna
 	// Set up a perf reader to read events from the eBPF program
 	rd, err := perf.NewReader(events, os.Getpagesize())
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Creating perf reader failed: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Creating perf reader failed: %v\n", err)
 	}
 	defer rd.Close()
 
