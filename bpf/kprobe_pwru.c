@@ -92,10 +92,10 @@ struct
 struct raw_metrics *unused_raw_metrics __attribute__((unused));
 struct
 {
-    __uint(type, BPF_MAP_TYPE_HASH);
+    __uint(type, BPF_MAP_TYPE_LRU_HASH);
     __type(key, u64);
     __type(value, struct raw_metrics);
-    __uint(max_entries, 1024);
+    __uint(max_entries, 4096);
 } io_metrics SEC(".maps");
 struct rpc_task_fields
 {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"github.com/cen-ngc5139/nfs-trace/internal"
 	ebpfbinary "github.com/cen-ngc5139/nfs-trace/internal/binary"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
@@ -30,7 +31,7 @@ func main() {
 
 	klog.InitFlags(nil)
 	log.InitLogger("./log/", 100, 5, 30)
-	// defer klog.Flush()
+	defer klog.Flush()
 
 	flag := internal.Flags{}
 	flag.SetFlags()
