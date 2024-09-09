@@ -17,9 +17,10 @@ const (
 )
 
 var (
-	scenario     = flag.String("scenario", "default", "选择模拟场景 (default, heavy_write, heavy_read, mixed)")
+	scenario     = flag.String("scenario", "default", "选择模拟场景 (default, heavy_write, heavy_read, mixed, lru_test)")
 	duration     = flag.Duration("duration", 5*time.Minute, "模拟持续时间")
 	waitInterval = flag.Duration("wait", 500*time.Millisecond, "操作间等待时间")
+	fileCount    = flag.Int("file-count", 20, "LRU 测试场景中的文件数量")
 )
 
 func simulateNFSRead(filename string) {
@@ -79,6 +80,8 @@ func main() {
 		runHeavyReadScenario(*duration, *waitInterval)
 	case "mixed":
 		runMixedScenario(*duration, *waitInterval)
+	case "lru_test":
+		runLRUTestScenario(*duration, *waitInterval, *fileCount)
 	default:
 		log.Fatalf("未知场景: %s", *scenario)
 	}
@@ -140,4 +143,38 @@ func runMixedScenario(duration, waitInterval time.Duration) {
 			time.Sleep(waitInterval)
 		}
 	}
+}
+
+func runLRUTestScenario(duration, waitInterval time.Duration, maxFiles int) {
+	log.Printf("开始执行 LRU 测试场景，最大文件数: %d", maxFiles)
+	startTime := time.Now()
+	fileIndex := 0
+
+	for time.Since(startTime) < duration {
+		// 创建新文件
+		filename := fmt.Sprintf("lru_test_file_%d.txt", fileIndex%maxFiles)
+		content := RandStringBytes(1024) // 1KB 的随机内容
+		simulateNFSWrite(baseNFSMountDir, filename, content)
+		log.Printf("创建/更新文件: %s", filename)
+
+		// 读取文件
+		simulateNFSRead(filename)
+		log.Printf("读取文件: %s", filename)
+
+		// 每创建/更新 5 个文件后，随机写入之前的文件
+		if fileIndex > 0 && fileIndex%5 == 0 {
+			for i := 0; i < 3; i++ {
+				randomFileIndex := rand.Intn(maxFiles)
+				randomFilename := fmt.Sprintf("lru_test_file_%d.txt", randomFileIndex)
+				randomContent := RandStringBytes(512) // 0.5KB 的随机内容
+				simulateNFSWrite(baseNFSMountDir, randomFilename, randomContent)
+				log.Printf("随机写入文件: %s", randomFilename)
+			}
+		}
+
+		fileIndex++
+		time.Sleep(waitInterval)
+	}
+
+	log.Printf("LRU 测试场景完成，共操作 %d 次文件", fileIndex)
 }

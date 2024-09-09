@@ -20,7 +20,7 @@ NFS Trace is a powerful tool designed to monitor and analyze NFS (Network File S
 
 1. Clone the repository:
    ```
-   git clone https://github.com/your-username/nfs-trace.git
+   git clone https://github.com/cen-ngc5139/nfs-trace.git
    cd nfs-trace
    ```
 
