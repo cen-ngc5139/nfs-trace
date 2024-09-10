@@ -425,8 +425,8 @@ int kb_nfs_read_d(struct pt_regs *regs)
     // 更新 io_metrics map
     bpf_map_update_elem(&io_metrics, &key, metrics, BPF_ANY);
 
-    bpf_printk("Read - dev: %llu, file: %llu, bytes: %u, count: %d, total_bytes: %d, latency: %d\n",
-               dev, fileid, res_count, metrics->read_count, metrics->read_size, metrics->read_lat);
+    // bpf_printk("Read - dev: %llu, file: %llu, bytes: %u, count: %d, total_bytes: %d, latency: %d\n",
+    //            dev, fileid, res_count, metrics->read_count, metrics->read_size, metrics->read_lat);
 
     return 0;
 }
@@ -480,8 +480,8 @@ int kb_nfs_write_d(struct pt_regs *regs)
     // 更新 io_metrics map
     bpf_map_update_elem(&io_metrics, &key, metrics, BPF_ANY);
 
-    bpf_printk("Write - dev: %llu, file: %llu, bytes: %u, count: %d, total_bytes: %d, latency: %d\n",
-               dev, fileid, res_count, metrics->write_count, metrics->write_size, metrics->write_lat);
+    // bpf_printk("Write - dev: %llu, file: %llu, bytes: %u, count: %d, total_bytes: %d, latency: %d\n",
+    //            dev, fileid, res_count, metrics->write_count, metrics->write_size, metrics->write_lat);
 
     return 0;
 }

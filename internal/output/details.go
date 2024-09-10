@@ -73,7 +73,7 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name interna
 			Container:     containerName,
 		}
 		// 保存devID+fileID和文件信息的映射关系, 如果已经存在，则覆盖
-		cache.NFSDevIDFileIDFileInfoMap.LoadOrStore(event.Key, mount)
+		cache.NFSDevIDFileIDFileInfoMap.Store(event.Key, mount)
 
 		select {
 		case <-ctx.Done():
