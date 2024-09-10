@@ -2,12 +2,14 @@ package output
 
 import (
 	"fmt"
+	"os"
+	"sync"
+
 	"github.com/cen-ngc5139/nfs-trace/internal/binary"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"sync"
 )
 
 const (
@@ -55,7 +57,7 @@ func NewNFSMetrics(performanceMap *sync.Map) *NFSMetrics {
 }
 
 // UpdateMetricsFromCache updates the Prometheus metrics from the NFSPerformanceMap
-func (m *NFSMetrics) UpdateMetricsFromCache() {
+func (m *NFSMetrics) UpdateMetricsFromCache(nodeName string) {
 	m.performanceMap.Range(func(key, value interface{}) bool {
 		keyStr := key.(uint64)
 		metrics := value.(binary.KProbePWRURawMetrics)
@@ -66,9 +68,6 @@ func (m *NFSMetrics) UpdateMetricsFromCache() {
 		// devID fileID 转换成字符串
 		devIDStr := fmt.Sprintf("%d", devID)
 		fileIDStr := fmt.Sprintf("%d", fileID)
-
-		// 使用一个固定的 nodeName，或者从某处获取
-		nodeName := "default_node"
 
 		// 更新所有指标
 		m.ReadCount.WithLabelValues(devIDStr, fileIDStr, nodeName).Set(float64(metrics.ReadCount))
@@ -84,8 +83,14 @@ func (m *NFSMetrics) UpdateMetricsFromCache() {
 
 func (m *NFSMetrics) MetricsHandler() gin.HandlerFunc {
 	h := promhttp.Handler()
+
+	nodeName, err := os.Hostname()
+	if err != nil {
+		nodeName = "default_node"
+	}
+
 	return func(c *gin.Context) {
-		m.UpdateMetricsFromCache()
+		m.UpdateMetricsFromCache(nodeName)
 		h.ServeHTTP(c.Writer, c.Request)
 	}
 }

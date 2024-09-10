@@ -24,7 +24,7 @@ dlv: elf build
 	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace-linux-amd64 -- -filter-struct=$(FILTER_STRUCT) -filter-func="^nfs.*" -all-kmods=true -output-metrics
 
 run: elf build
-	./cmd/nfs-trace-linux-amd64 -filter-struct=$(FILTER_STRUCT) -filter-func="^(vfs_|nfs_).*" -all-kmods=true -output-metrics
+	./cmd/nfs-trace-linux-amd64 -filter-struct=$(FILTER_STRUCT) -filter-func="^(vfs_|nfs_).*" -all-kmods=true
 
 skip: elf build
 	./cmd/nfs-trace-linux-amd64 -filter-struct=$(FILTER_STRUCT) -skip-attach=true -all-kmods=true -filter-func="^nfs.*"
