@@ -3,15 +3,18 @@ package output
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/cen-ngc5139/nfs-trace/internal"
 	ebpfbinary "github.com/cen-ngc5139/nfs-trace/internal/binary"
+	"github.com/cen-ngc5139/nfs-trace/internal/cache"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/perf"
 	"k8s.io/klog/v2"
-	"os"
-	"time"
 )
 
 func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name internal.Addr2Name) {
@@ -23,7 +26,7 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name interna
 	}
 	defer rd.Close()
 
-	fmt.Printf("Addr \t\t PID \t\t Pod Name \t\t Container ID \t\t Mount \t\t NFS Mount \t\t File \t\t MountID \n")
+	fmt.Printf("Addr \t\t PID \t\t Pod Name \t\t Container ID \t\t Mount \t\t NFS Mount \t\t File \t\t MountID \t\t DevID \t\t FileID \n")
 	var event ebpfbinary.KProbePWRURpcTaskFields
 	for {
 		for {
@@ -52,9 +55,25 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name interna
 		}
 
 		funcName := addr2name.FindNearestSym(event.CallerAddr)
-		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \t\t%s \t\t%d \n",
-			funcName, event.Pid, convertInt8ToString(event.Pod[:]), convertInt8ToString(event.Container[:]),
-			mountInfo.LocalMountDir, mountInfo.RemoteNFSAddr, parseFileName(event.File[:]), event.MountId)
+		filePath := parseFileName(event.File[:])
+
+		podName := sanitizeString(convertInt8ToString(event.Pod[:]))
+		containerName := sanitizeString(convertInt8ToString(event.Container[:]))
+
+		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \t\t%s \t\t%d \t\t%d \t\t%d \n",
+			funcName, event.Pid, podName, containerName,
+			mountInfo.LocalMountDir, mountInfo.RemoteNFSAddr, filePath, event.MountId, event.DevId, event.FileId)
+
+		mount := metadata.NFSFile{
+			MountPath:     mountInfo.LocalMountDir,
+			RemoteNFSAddr: mountInfo.RemoteNFSAddr,
+			LocalMountDir: mountInfo.LocalMountDir,
+			FilePath:      filePath,
+			Pod:           podName,
+			Container:     containerName,
+		}
+		// 保存devID+fileID和文件信息的映射关系, 如果已经存在，则覆盖
+		cache.NFSDevIDFileIDFileInfoMap.LoadOrStore(event.Key, mount)
 
 		select {
 		case <-ctx.Done():
@@ -62,4 +81,8 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name interna
 		default:
 		}
 	}
+}
+
+func sanitizeString(s string) string {
+	return strings.TrimSpace(s)
 }

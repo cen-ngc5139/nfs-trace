@@ -106,6 +106,9 @@ struct rpc_task_fields
     u64 caller_addr;
     char path[100];
     char file[100];
+    u32 dev_id;
+    u32 file_id;
+    u64 key;
 };
 
 struct rpc_task_fields *unused_event __attribute__((unused));
@@ -225,6 +228,14 @@ kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
     struct file *file = BPF_CORE_READ(iocb, ki_filp);
     if (!file)
         return 0;
+
+    struct inode *inode = BPF_CORE_READ(file, f_inode);
+    if (!inode)
+        return 0;
+
+    event.dev_id = BPF_CORE_READ(inode, i_sb, s_dev);
+    event.file_id = BPF_CORE_READ(inode, i_ino);
+    event.key = (((u64)event.dev_id) << 32) | (event.file_id & 0xFFFFFFFF);
 
     struct path fp = BPF_CORE_READ(file, f_path);
     if (!fp.mnt)
