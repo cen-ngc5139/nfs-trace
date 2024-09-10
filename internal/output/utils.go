@@ -3,9 +3,10 @@ package output
 import (
 	"bytes"
 	"encoding/binary"
+	"strings"
+
 	"github.com/cilium/ebpf/perf"
 	"github.com/pkg/errors"
-	"strings"
 )
 
 func parseEvent(rd *perf.Reader, data interface{}) error {
@@ -25,12 +26,15 @@ func parseEvent(rd *perf.Reader, data interface{}) error {
 	return nil
 }
 
-func convertInt8ToString(bs []int8) string {
-	ba := make([]byte, 0, len(bs))
-	for _, b := range bs {
-		ba = append(ba, byte(b))
+func convertInt8ToString(data []int8) string {
+	var result strings.Builder
+	for _, b := range data {
+		if b == 0 {
+			break
+		}
+		result.WriteByte(byte(b))
 	}
-	return string(ba)
+	return result.String()
 }
 
 func parseFileName(bs []int8) string {

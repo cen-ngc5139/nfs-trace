@@ -5,7 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/cen-ngc5139/nfs-trace/internal/binary"
+	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
@@ -39,11 +39,11 @@ func createCounterVec(name, help string) *prometheus.GaugeVec {
 			Name: name,
 			Help: help,
 		},
-		[]string{"dev_id", "file_id", "node_name"},
+		[]string{"dev_id", "file_id", "node_name", "nfs_server", "file_path", "mount_path", "pod", "container"},
 	)
 }
 
-// NewNFSMetrics 创建并注��� NFS 指标
+// NewNFSMetrics 创建并注册 NFS 指标
 func NewNFSMetrics(performanceMap *sync.Map) *NFSMetrics {
 	return &NFSMetrics{
 		ReadCount:      createCounterVec(NFSReadCount, "NFS read count"),
@@ -60,7 +60,12 @@ func NewNFSMetrics(performanceMap *sync.Map) *NFSMetrics {
 func (m *NFSMetrics) UpdateMetricsFromCache(nodeName string) {
 	m.performanceMap.Range(func(key, value interface{}) bool {
 		keyStr := key.(uint64)
-		metrics := value.(binary.KProbePWRURawMetrics)
+		info := value.(metadata.NFSTraceInfo)
+		metrics := info.Traffic
+		file := info.File
+		nfsServer := file.RemoteNFSAddr
+		filePath := file.FilePath
+		mountPath := file.MountPath
 
 		// 假设 keyStr 的格式是 "devID:fileID"
 		devID, fileID := parseKey(keyStr)
@@ -68,14 +73,16 @@ func (m *NFSMetrics) UpdateMetricsFromCache(nodeName string) {
 		// devID fileID 转换成字符串
 		devIDStr := fmt.Sprintf("%d", devID)
 		fileIDStr := fmt.Sprintf("%d", fileID)
+		pod := file.Pod
+		container := file.Container
 
 		// 更新所有指标
-		m.ReadCount.WithLabelValues(devIDStr, fileIDStr, nodeName).Set(float64(metrics.ReadCount))
-		m.WriteCount.WithLabelValues(devIDStr, fileIDStr, nodeName).Set(float64(metrics.WriteCount))
-		m.ReadSize.WithLabelValues(devIDStr, fileIDStr, nodeName).Set(float64(metrics.ReadSize))
-		m.WriteSize.WithLabelValues(devIDStr, fileIDStr, nodeName).Set(float64(metrics.WriteSize))
-		m.ReadLatencies.WithLabelValues(devIDStr, fileIDStr, nodeName).Set(float64(metrics.ReadLat))
-		m.WriteLatencies.WithLabelValues(devIDStr, fileIDStr, nodeName).Set(float64(metrics.WriteLat))
+		m.ReadCount.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.ReadCount))
+		m.WriteCount.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.WriteCount))
+		m.ReadSize.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.ReadSize))
+		m.WriteSize.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.WriteSize))
+		m.ReadLatencies.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.ReadLat))
+		m.WriteLatencies.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.WriteLat))
 
 		return true
 	})
