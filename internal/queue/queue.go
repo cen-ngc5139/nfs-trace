@@ -140,7 +140,6 @@ func (k *KubernetesEventSource) Work(jobs <-chan *Event) {
 }
 
 func (k *KubernetesEventSource) worker(pod *Event) error {
-	// TODO: Implement the worker method.
 	if pod.Pod == nil {
 		klog.Errorf("pod is nil")
 		return nil
@@ -152,8 +151,8 @@ func (k *KubernetesEventSource) worker(pod *Event) error {
 	}
 
 	statuses := pod.Pod.Status.ContainerStatuses
-
 	for _, status := range statuses {
+		klog.Infof("start to process pod: %s, container: %s", pod.Pod.Name, status.Name)
 		if status.ContainerID == "" {
 			klog.Infof("pod %s container %s id is empty", pod.Pod.Name, status.Name)
 			continue
@@ -171,12 +170,19 @@ func (k *KubernetesEventSource) worker(pod *Event) error {
 				return nil
 			}
 
-			klog.Infof("start to process update event, pod: %s ", pod.Pod.Name)
-			return updatePidCgroupMap(k.PidCgroupMap, containerID, pod.Pod.Name, status.Name)
+			klog.Infof("start to process update event, pod: %s, container: %s", pod.Pod.Name, status.Name)
+			err := updatePidCgroupMap(k.PidCgroupMap, containerID, pod.Pod.Name, status.Name)
+			if err != nil {
+				klog.Errorf("failed to update pid cgroup map: %v", err)
+				return err
+			}
 		case DelEventType:
 			klog.Infof("start to process delete event, pod: %s ", pod.Pod.Name)
-			return deletePidCgroupMap(k.PidCgroupMap, containerID)
-
+			err := deletePidCgroupMap(k.PidCgroupMap, containerID)
+			if err != nil {
+				klog.Errorf("failed to delete pid cgroup map: %v", err)
+				return err
+			}
 		}
 	}
 
@@ -211,7 +217,8 @@ func int8ArrayToString(arr [100]int8) string {
 
 func updatePidCgroupMap(m *ebpf.Map, containerID, pod, container string) error {
 	klog.Infof("update pid cgroup map, pid: %s", containerID)
-	pid, err := cri.NewContainerd(containerID).GetPid()
+
+	pid, err := cri.GetPid(containerID)
 	if err != nil {
 		klog.Errorf("failed to get pid: %v", err)
 		return err

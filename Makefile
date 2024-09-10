@@ -16,20 +16,20 @@ CC ?= gcc
 TEST_TIMEOUT ?= 5s
 .DEFAULT_GOAL := pwru
 
-build:
+build: elf
 	cd ./cmd;CGO_ENABLED=0 GOOS=linux GOARCH=amd64   go build -gcflags "all=-N -l" -o nfs-trace-linux-amd64
 	cd ./cmd;CGO_ENABLED=0 GOOS=linux GOARCH=arm64   go build -gcflags "all=-N -l" -o nfs-trace-linux-arm64
 
-dlv: elf build
+dlv:  build
 	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace-linux-amd64 -- -filter-struct=$(FILTER_STRUCT) -filter-func="^nfs.*" -all-kmods=true -output-metrics
 
-run: elf build
+run:  build
 	./cmd/nfs-trace-linux-amd64 -filter-struct=$(FILTER_STRUCT) -filter-func="^(vfs_|nfs_).*" -all-kmods=true
 
-skip: elf build
+skip:  build
 	./cmd/nfs-trace-linux-amd64 -filter-struct=$(FILTER_STRUCT) -skip-attach=true -all-kmods=true -filter-func="^nfs.*"
 
-funcs: elf build
+funcs:  build
 	./cmd/nfs-trace-linux-amd64 -filter-struct=kiocb -all-kmods=true -filter-func="^(vfs_|nfs_).*" -add-funcs="nfs_file_direct_read:1,nfs_file_direct_write:1,nfs_swap_rw:1,nfs_file_read:1,nfs_file_write:1"
 
 elf:

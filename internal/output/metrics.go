@@ -46,7 +46,7 @@ func ProcessMetrics(coll *ebpf.Collection, ctx context.Context, isOutMetrics boo
 
 			traceInfo := metadata.NFSTraceInfo{Traffic: event, File: file}
 			// 持久化数据到 cache.NFSPerformanceMap 缓存中
-			cache.NFSPerformanceMap.LoadOrStore(nextKey, traceInfo)
+			cache.NFSPerformanceMap.Store(nextKey, traceInfo)
 
 			// 统计文件的读写次数
 			count++
