@@ -217,23 +217,29 @@ func main() {
 	s := server.NewServer()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
 
-	// 在新的 goroutine 中启动服务器
-	go func() {
-		defer wg.Done()
-		if err := s.Start(); err != nil {
-			log.Errorf("Server stopped: %v", err)
-		}
-	}()
-
-	// Set up a perf reader to read events from the eBPF program
-	if flag.OutPerformanceMetrics {
-		output.ProcessMetrics(coll, ctx)
-	} else {
-		output.ProcessEvents(coll, ctx, addr2name)
+	tasks := []struct {
+		name string
+		fn   func() error
+	}{
+		{"服务器", func() error { return s.Start() }},
+		{"处理指标", func() error { output.ProcessMetrics(coll, ctx, flag.OutPerformanceMetrics); return nil }},
+		{"处理事件", func() error { output.ProcessEvents(coll, ctx, addr2name); return nil }},
 	}
 
-	// 等待服务器 goroutine 结束
+	for _, task := range tasks {
+		wg.Add(1)
+		go func(t struct {
+			name string
+			fn   func() error
+		}) {
+			defer wg.Done()
+			if err := t.fn(); err != nil {
+				log.Errorf("%s 停止: %v", t.name, err)
+			}
+		}(task)
+	}
+
+	// 等待所有 goroutine 结束
 	wg.Wait()
 }

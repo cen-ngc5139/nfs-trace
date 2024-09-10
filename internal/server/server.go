@@ -3,14 +3,15 @@ package server
 import (
 	"context"
 	"errors"
-	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"io"
-	"k8s.io/klog/v2"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/cen-ngc5139/nfs-trace/internal/log"
+	"k8s.io/klog/v2"
 
 	"github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
@@ -66,7 +67,7 @@ func (s *Server) Start() error {
 	// Initializing the server in a goroutine so that it won't block the graceful shutdown handling below
 	go func() {
 		if err := s.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			klog.Fatal("Listen: %s\n", err)
+			klog.Fatalf("Listen: %s\n", err)
 		}
 	}()
 
