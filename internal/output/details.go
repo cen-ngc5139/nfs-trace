@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cen-ngc5139/nfs-trace/internal"
 	ebpfbinary "github.com/cen-ngc5139/nfs-trace/internal/binary"
+	"github.com/cen-ngc5139/nfs-trace/internal/bpf"
 	"github.com/cen-ngc5139/nfs-trace/internal/cache"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
@@ -17,7 +17,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name internal.Addr2Name) {
+func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Addr2Name) {
 	events := coll.Maps["rpc_task_map"]
 	// Set up a perf reader to read events from the eBPF program
 	rd, err := perf.NewReader(events, os.Getpagesize())

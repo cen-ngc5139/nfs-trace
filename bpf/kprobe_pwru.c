@@ -315,6 +315,8 @@ int nfs_init_read(struct nfs_init_fields *ctx)
     u32 tid = (u32)bpf_get_current_pid_tgid();
     u64 timestamp = bpf_ktime_get_ns();
 
+    // bpf_printk("nfs_init_read: %llu, pid: %u, tid: %u\n", timestamp, pid, tid);
+
     bpf_map_update_elem(&link_begin, &pid, &timestamp, BPF_ANY);
 
     return 0;
@@ -327,6 +329,8 @@ int nfs_init_write(struct nfs_init_fields *ctx)
     u32 tid = (u32)bpf_get_current_pid_tgid();
     u64 timestamp = bpf_ktime_get_ns();
 
+    // bpf_printk("nfs_init_write: %llu, pid: %u, tid: %u\n", timestamp, pid, tid);
+
     bpf_map_update_elem(&link_begin, &pid, &timestamp, BPF_ANY);
 
     return 0;
@@ -338,6 +342,8 @@ int rpc_task_begin(struct rpc_task_state *ctx)
     u32 pid = bpf_get_current_pid_tgid() >> 32;
     u32 tid = (u32)bpf_get_current_pid_tgid();
     u64 rpc_task_id = (u64)ctx->task_id;
+
+    // bpf_printk("rpc_task_begin: %llu, pid: %u, tid: %u\n", rpc_task_id, pid, tid);
 
     u64 *timestamp = bpf_map_lookup_elem(&link_begin, &pid);
     if (timestamp)
@@ -356,6 +362,65 @@ SEC("tracepoint/sunrpc/rpc_task_end")
 int rpc_task_done(struct rpc_task_state *ctx)
 {
     u64 rpc_task_id = (u64)ctx->task_id;
+
+    // bpf_printk("rpc_task_done: %llu\n", rpc_task_id);
+
+    struct rpc_task_info *info = bpf_map_lookup_elem(&waiting_RPC, &rpc_task_id);
+    if (info)
+    {
+        // 更新 link_end map
+        int update_result = bpf_map_update_elem(&link_end, &info->pid, &info->timestamp, BPF_ANY);
+        if (update_result != 0)
+        {
+            return 0;
+        }
+
+        // 从 waiting_RPC map 中删除元素
+        int delete_result = bpf_map_delete_elem(&waiting_RPC, &rpc_task_id);
+        if (delete_result != 0)
+        {
+            return 0;
+        }
+    }
+
+    return 0;
+}
+
+SEC("kprobe/rpc_make_runnable")
+int rpc_execute(struct pt_regs *regs)
+{
+    struct rpc_task *task;
+    task = (struct rpc_task *)PT_REGS_PARM2(regs);
+
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+    u32 tid = (u32)bpf_get_current_pid_tgid();
+    u64 rpc_task_id = BPF_CORE_READ(task, tk_pid);
+
+    // bpf_printk("rpc_execute: %llu, pid: %u, tid: %u\n", rpc_task_id, pid, tid);
+
+    u64 *timestamp = bpf_map_lookup_elem(&link_begin, &pid);
+    if (timestamp)
+    {
+        struct rpc_task_info info = {
+            .timestamp = *timestamp,
+            .tid = tid,
+            .pid = pid};
+        bpf_map_update_elem(&waiting_RPC, &rpc_task_id, &info, BPF_ANY);
+    }
+
+    return 0;
+}
+
+SEC("kprobe/rpc_exit_task")
+int rpc_exit_task(struct pt_regs *regs)
+{
+    struct rpc_task *task;
+    task = (struct rpc_task *)PT_REGS_PARM1(regs);
+
+    u64 rpc_task_id = BPF_CORE_READ(task, tk_pid);
+
+    // bpf_printk("rpc_exit_task: %llu\n", rpc_task_id);
+
     struct rpc_task_info *info = bpf_map_lookup_elem(&waiting_RPC, &rpc_task_id);
     if (info)
     {
