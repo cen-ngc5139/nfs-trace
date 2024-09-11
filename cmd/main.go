@@ -5,7 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/cen-ngc5139/nfs-trace/internal"
+	"github.com/cen-ngc5139/nfs-trace/internal/bpf"
+
 	ebpfbinary "github.com/cen-ngc5139/nfs-trace/internal/binary"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
@@ -33,7 +34,7 @@ func main() {
 	log.InitLogger("./log/", 100, 5, 30)
 	defer klog.Flush()
 
-	flag := internal.Flags{}
+	flag := bpf.Flags{}
 	flag.SetFlags()
 	flag.Parse()
 
@@ -97,21 +98,21 @@ func main() {
 	}
 
 	// 获取需要添加的函数
-	var addFuncs internal.Funcs
+	var addFuncs bpf.Funcs
 	addFuncs = make(map[string]int)
 	if flag.AddFuncs != "" {
-		addFuncs = internal.SplitCustomFunList(flag.AddFuncs)
+		addFuncs = bpf.SplitCustomFunList(flag.AddFuncs)
 	}
 
 	// filter functions
-	funcs, err := internal.GetFuncs(flag.FilterFunc, flag.FilterStruct, flag.ModelBTF, btfSpec, kmods, false)
+	funcs, err := bpf.GetFuncs(flag.FilterFunc, flag.FilterStruct, flag.ModelBTF, btfSpec, kmods, false)
 	if err != nil {
 		log.Fatalf("Failed to get skb-accepting functions: %s", err)
 	}
 
 	// add functions
 	if len(addFuncs) != 0 {
-		funcs = internal.MergerFunList(funcs, addFuncs)
+		funcs = bpf.MergerFunList(funcs, addFuncs)
 	}
 
 	funcs.ToString()
@@ -122,7 +123,7 @@ func main() {
 	}
 
 	// get function addresses
-	addr2name, _, err := internal.ParseKallsyms(funcs, true)
+	addr2name, _, err := bpf.ParseKallsyms(funcs, true)
 	if err != nil {
 		log.Fatalf("Failed to get function addrs: %s", err)
 	}
@@ -153,39 +154,28 @@ func main() {
 	}
 	defer coll.Close()
 
-	// attach nfs tracepoints
-	nfsTracepointProgs := map[string]*ebpf.Program{}
-	for name, prog := range coll.Programs {
-		key, ok := internal.NFSTracepointProgs[name]
-		if !ok {
-			continue
-		}
-
-		nfsTracepointProgs[key] = prog
+	trace, hasError, err := bpf.AttachTracepoint(coll)
+	if err != nil {
+		log.Fatalf("Failed to attach tracepoint: %v", err)
 	}
-
-	trace := internal.Tracepoint("nfs", nfsTracepointProgs)
 	defer trace.Detach()
 
-	// attach rpc tracepoints
-	rpcTracepointProgs := map[string]*ebpf.Program{}
-	for name, prog := range coll.Programs {
-		key, ok := internal.RPCTracepointProgs[name]
-		if !ok {
-			continue
-		}
-
-		rpcTracepointProgs[key] = prog
+	// 如果 tracepoint 附加 rpc_task_begin/rpc_task_end 成功
+	// 说明当前内核版本支持以上两个 tracepoint
+	// 则删除 rpc_exit_task 和 rpc_execute 的 kprobe
+	// tracepoint rpc_task_begin/rpc_task_end 挂载点与 kprobe rpc_exit_task/rpc_execute 挂载点冲突
+	var nfsKprobeProgs map[string]string
+	nfsKprobeProgs = bpf.NFSKprobeProgs
+	if !hasError {
+		delete(nfsKprobeProgs, "rpc_exit_task")
+		delete(nfsKprobeProgs, "rpc_execute")
 	}
 
-	rpcTrace := internal.Tracepoint("sunrpc", rpcTracepointProgs)
-	defer rpcTrace.Detach()
-
 	// attach kprobes
-	k := internal.NewKprober(ctx, funcs, coll, addr2name, false, 10)
+	k := bpf.NewKprober(ctx, funcs, coll, addr2name, false, 10)
 	defer k.DetachKprobes()
 
-	c := internal.NewCustomFuncsKprober(internal.NFSKprobeProgs, coll)
+	c := bpf.NewCustomFuncsKprober(nfsKprobeProgs, coll)
 	defer c.DetachKprobes()
 
 	log.Info("Listening for events..")

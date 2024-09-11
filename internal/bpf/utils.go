@@ -2,7 +2,7 @@
 /* Copyright Martynas Pumputis */
 /* Copyright Authors of Cilium */
 
-package internal
+package bpf
 
 import (
 	"bufio"

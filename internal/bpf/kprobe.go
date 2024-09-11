@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 /* Copyright 2024 Authors of Cilium */
 
-package internal
+package bpf
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"k8s.io/klog/v2"
 	"log"
 	"os"
 	"sync"
 	"syscall"
+
+	"k8s.io/klog/v2"
 
 	pb "github.com/cheggaaa/pb/v3"
 	"github.com/cilium/ebpf"
@@ -36,6 +37,8 @@ var (
 	NFSKprobeProgs = map[string]string{
 		"kb_nfs_write_d": "nfs_writeback_done",
 		"kb_nfs_read_d":  "nfs_readpage_done",
+		"rpc_exit_task":  "rpc_exit_task",
+		"rpc_execute":    "rpc_make_runnable",
 	}
 )
 

@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 /* Copyright 2024 Authors of Cilium */
 
-package internal
+package bpf
 
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/cilium/ebpf"
@@ -71,6 +73,16 @@ func (t *tracing) addLink(l link.Link) {
 	t.links = append(t.links, l)
 }
 
+func (t *tracing) Merge(adds ...*tracing) {
+	t.Lock()
+	defer t.Unlock()
+
+	for _, add := range adds {
+		t.links = append(t.links, add.links...)
+		t.progs = append(t.progs, add.progs...)
+	}
+}
+
 func (t *tracing) trace(group, tracingName string, prog *ebpf.Program) error {
 	tracing, err := link.Tracepoint(group, tracingName, prog, nil)
 	if err != nil {
@@ -83,14 +95,20 @@ func (t *tracing) trace(group, tracingName string, prog *ebpf.Program) error {
 }
 
 func Tracepoint(group string, progs map[string]*ebpf.Program) *tracing {
-	log.Printf("Attaching Gourp %s TracePoint progs...\n", group)
+	log.Printf("正在附加 %s 组的 TracePoint 程序...\n", group)
 
 	var t tracing
-	for tragename, prog := range progs {
-		if err := t.trace(group, tragename, prog); err != nil {
-			log.Fatalf("failed to trace Group %s TracePoint progs: %v", group, err)
+	for tracepointName, prog := range progs {
+		if err := t.trace(group, tracepointName, prog); err != nil {
+			log.Fatalf("附加 %s 组的 TracePoint 程序失败: %v", group, err)
 		}
 	}
 
 	return &t
+}
+
+func IsTracepointExist(group, tracepointName string) bool {
+	tracepointPath := filepath.Join("/sys/kernel/debug/tracing/events", group, tracepointName, "enable")
+	_, err := os.Stat(tracepointPath)
+	return err == nil
 }
