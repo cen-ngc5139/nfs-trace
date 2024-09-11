@@ -12,9 +12,13 @@ NFS Trace is a powerful tool designed to monitor and analyze NFS (Network File S
 
 ## Prerequisites
 
-- Linux kernel 6.8.0+ with BTF support
+- Linux kernel 4.19+ with BTF support
 - Go 1.22+
 - Kubernetes cluster (for K8s integration)
+
+Tested operating systems and kernel versions:
+- KylinOS 10 SP3 (ARM64) - kernel 4.19.90
+- Ubuntu 24.04 (AMD64) - kernel 6.8.0
 
 ## Installation
 
