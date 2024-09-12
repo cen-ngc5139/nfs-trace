@@ -4,6 +4,7 @@ GO_GENERATE = $(GO) generate
 GO_TAGS ?=
 TARGET_GOARCH ?= amd64,arm64
 GOARCH ?= amd64
+GOOS ?= linux
 TARGET=pwru
 INSTALL = $(QUIET)install
 BINDIR ?= /usr/local/bin
@@ -17,8 +18,7 @@ TEST_TIMEOUT ?= 5s
 .DEFAULT_GOAL := pwru
 
 build: elf
-	cd ./cmd;CGO_ENABLED=0 GOOS=linux GOARCH=amd64   go build -gcflags "all=-N -l" -o nfs-trace-linux-amd64
-	cd ./cmd;CGO_ENABLED=0 GOOS=linux GOARCH=arm64   go build -gcflags "all=-N -l" -o nfs-trace-linux-arm64
+	cd ./cmd;CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH)   go build -gcflags "all=-N -l" -o nfs-trace
 
 dlv:  build
 	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace-linux-amd64 -- -filter-struct=$(FILTER_STRUCT) -filter-func="^nfs.*" -all-kmods=true -output-metrics
@@ -37,3 +37,8 @@ elf:
     	CC=$(CC) GOARCH=$(TARGET_GOARCH) $(GO_BUILD) $(if $(GO_TAGS),-tags $(GO_TAGS)) \
     		-ldflags "-w -s \
     		-X 'github.com/cilium/pwru/internal/pwru.Version=${VERSION}'"
+
+image:
+	docker buildx create --use
+	docker buildx build --platform linux/amd64 -t ghostbaby/nfs-trace:v0.0.1-amd64 --push .
+	docker buildx build --platform linux/arm64 -t ghostbaby/nfs-trace:v0.0.1-arm64 --push .
