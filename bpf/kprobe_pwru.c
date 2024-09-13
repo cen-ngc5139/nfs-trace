@@ -513,7 +513,6 @@ int kb_nfs_write_d(struct pt_regs *regs)
     hdr = (struct nfs_pgio_header *)PT_REGS_PARM2(regs);
 
     // 获取 dev 和 fileid
-    struct nfs_write_data *wdata = BPF_CORE_READ(task, tk_msg.rpc_argp);
     u64 dev = BPF_CORE_READ(inode, i_sb, s_dev);
     u64 fileid = BPF_CORE_READ(inode, i_ino);
     u64 key = (((u64)dev) << 32) | (fileid & 0xFFFFFFFF);

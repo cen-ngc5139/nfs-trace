@@ -19,6 +19,7 @@ NFS Trace is a powerful tool designed to monitor and analyze NFS (Network File S
 Tested operating systems and kernel versions:
 - KylinOS 10 SP3 (ARM64) - kernel 4.19.90
 - Ubuntu 24.04 (AMD64) - kernel 6.8.0
+- Ubuntu 22.04 (AMD64) - kernel 5.15.0
 
 ## Installation
 
