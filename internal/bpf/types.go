@@ -2,6 +2,8 @@ package bpf
 
 import (
 	"flag"
+
+	"github.com/spf13/pflag"
 )
 
 type Flags struct {
@@ -15,25 +17,24 @@ type Flags struct {
 	LogLevel              int
 	OutputDetails         bool
 	OutPerformanceMetrics bool
+	EnableDebug           bool
 }
 
-func (f *Flags) SetFlags() {
-	flag.StringVar(&f.FilterFunc, "filter-func", "", "filter kernel functions to be probed by name (exact match, supports RE2 regular expression)")
-	flag.StringVar(&f.FilterStruct, "filter-struct", "", "filter kernel structs to be probed by name (ex. sk_buff/rpc_task)")
-	flag.StringVar(&f.KernelBTF, "kernel-btf", "", "specify kernel BTF file")
-	flag.StringVar(&f.ModelBTF, "model-btf-dir", "", "specify kernel model BTF dir")
-	flag.BoolVar(&f.AllKMods, "all-kmods", false, "attach to all available kernel modules")
-	flag.BoolVar(&f.SkipAttach, "skip-attach", false, "skip attaching kprobes")
-	flag.StringVar(&f.AddFuncs, "add-funcs", "", "add functions to be probed by name (ex. rpc_task:1,sk_buff:2)")
-	flag.IntVar(&f.LogLevel, "log-level", 2, "set log level(ex. 0: no log, 1: error, 2: info, 3: debug)")
-	flag.BoolVar(&f.OutputDetails, "output-details", false, "output details of the probed functions")
-	flag.BoolVar(&f.OutPerformanceMetrics, "output-metrics", false, "output performance metrics")
-	// 禁用 klog 的默认输出
-	flag.Set("logtostderr", "false")
-	flag.Set("alsologtostderr", "false")
-	flag.Set("log_file", "")
-}
+func (f *Flags) SetFlags(pflag *pflag.FlagSet) {
+	pflag.AddGoFlagSet(flag.CommandLine)
+	pflag.StringVar(&f.FilterFunc, "filter-func", "", "filter kernel functions to be probed by name (exact match, supports RE2 regular expression)")
+	pflag.StringVar(&f.FilterStruct, "filter-struct", "", "filter kernel structs to be probed by name (ex. sk_buff/rpc_task)")
+	pflag.StringVar(&f.KernelBTF, "kernel-btf", "", "specify kernel BTF file")
+	pflag.StringVar(&f.ModelBTF, "model-btf-dir", "", "specify kernel model BTF dir")
+	pflag.BoolVar(&f.AllKMods, "all-kmods", false, "attach to all available kernel modules")
+	pflag.BoolVar(&f.SkipAttach, "skip-attach", false, "skip attaching kprobes")
+	pflag.StringVar(&f.AddFuncs, "add-funcs", "", "add functions to be probed by name (ex. rpc_task:1,sk_buff:2)")
+	pflag.IntVar(&f.LogLevel, "log-level", 2, "set log level(ex. 0: no log, 1: error, 2: info, 3: debug)")
+	pflag.BoolVar(&f.OutputDetails, "output-details", false, "output details of the probed functions")
+	pflag.BoolVar(&f.OutPerformanceMetrics, "output-metrics", false, "output performance metrics")
+	pflag.BoolVar(&f.EnableDebug, "enable-debug", false, "enable debug mode")
 
-func (f *Flags) Parse() {
-	flag.Parse()
+	pflag.Set("logtostderr", "false")
+	pflag.Set("alsologtostderr", "false")
+	pflag.Set("log_file", "")
 }
