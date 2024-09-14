@@ -8,3 +8,4 @@ kprobepwru_arm64_bpfel.go
 kprobepwru_arm64_bpfel.o
 nfs-trace-linux-arm64
 nfs-trace-linux-amd64
+.vscode
