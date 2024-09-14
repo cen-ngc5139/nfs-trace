@@ -11,8 +11,8 @@ RUN apt-get update && apt-get install -y \
     make \
     gcc \
     clang \
-    llvm 
-# && rm -rf /var/lib/apt/lists/*
+    llvm \
+    && rm -rf /var/lib/apt/lists/*
 
 # 设置 Go 环境变量
 ENV PATH="/usr/lib/go-1.22/bin:${PATH}"
@@ -35,11 +35,13 @@ RUN go mod download
 # 复制源代码
 COPY . .
 
+RUN mkdir -p /app/internal/binary/
+
 # 编译应用
 RUN make build GOARCH=$TARGETARCH GOOS=$TARGETOS
 
 # 使用 Ubuntu 24.04 作为最终镜像
-FROM --platform=$TARGETPLATFORM ubuntu:24.04
+FROM ubuntu:24.04
 
 # 安装必要的运行时依赖
 RUN apt-get update && apt-get install -y \
