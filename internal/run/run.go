@@ -201,7 +201,7 @@ func Run(flag bpf.Flags) {
 
 	pidMap := coll.Maps["pid_cgroup_map"]
 	queue.Source.WithEbpfMap(pidMap)
-	// 启动 spark job pod 就绪清理控制器
+
 	go queue.Source.Export()
 
 	s := server.NewServer()
