@@ -37,8 +37,10 @@ func AttachTracepoint(coll *ebpf.Collection) (*tracing, bool, error) {
 		rpcTracepointProgs[key] = prog
 	}
 
-	rpcTrace := Tracepoint("sunrpc", rpcTracepointProgs)
-	trace.Merge(rpcTrace)
+	if !hasError {
+		rpcTrace := Tracepoint("sunrpc", rpcTracepointProgs)
+		trace.Merge(rpcTrace)
+	}
 
 	return trace, hasError, nil
 }
