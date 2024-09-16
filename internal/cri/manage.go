@@ -6,7 +6,7 @@ import (
 )
 
 type Handler interface {
-	GetPid() (int, error)
+	GetPids() ([]int, error)
 }
 
 // GetCriType 获取 CRI 类型
@@ -38,11 +38,11 @@ func NewCriHandler(criType string, containerID string) (Handler, error) {
 }
 
 // GetPid 根据 CRI 类型获取容器的 PID
-func GetPid(containerID string) (int, error) {
+func GetPids(containerID string) ([]int, error) {
 	criType := GetCriType()
 	handler, err := NewCriHandler(criType, containerID)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
-	return handler.GetPid()
+	return handler.GetPids()
 }
