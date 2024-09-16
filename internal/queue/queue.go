@@ -218,38 +218,46 @@ func int8ArrayToString(arr [100]int8) string {
 func updatePidCgroupMap(m *ebpf.Map, containerID, pod, container string) error {
 	klog.Infof("update pid cgroup map, pid: %s", containerID)
 
-	pid, err := cri.GetPid(containerID)
+	pids, err := cri.GetPids(containerID)
 	if err != nil {
 		klog.Errorf("failed to get pid: %v", err)
 		return err
 	}
 
-	klog.Infof("get pid: %d", pid)
-	pidKey := uint64(pid)
-	meta := Metadata{Pid: uint64(pid)}
-	stringToInt8Array(pod, &meta.Pod)
-	stringToInt8Array(container, &meta.Container)
-
-	if err = m.Put(&pidKey, &meta); err != nil {
-		klog.Errorf("failed to put pid cgroup map: %v", err)
-		return err
+	if len(pids) == 0 {
+		klog.Errorf("no pids found for container: %s", containerID)
+		return nil
 	}
 
-	defer func() {
-		cache.PodContainerPIDMap.LoadOrStore(containerID, pidKey)
-	}()
+	for _, pid := range pids {
+		klog.Infof("get pid: %d", pid)
+		pidKey := uint64(pid)
+		meta := Metadata{Pid: uint64(pid)}
+		stringToInt8Array(pod, &meta.Pod)
+		stringToInt8Array(container, &meta.Container)
 
-	// 读取并验证数据（可选）
-	var retrievedValue Metadata
-	if err := m.Lookup(&pidKey, &retrievedValue); err != nil {
-		log.Fatalf("failed to read from map: %v", err)
+		if err = m.Put(&pidKey, &meta); err != nil {
+			klog.Errorf("failed to put pid cgroup map: %v", err)
+			return err
+		}
+
+		defer func() {
+			cache.PodContainerPIDMap.LoadOrStore(containerID, pidKey)
+		}()
+
+		// 读取并验证数据（可选）
+		var retrievedValue Metadata
+		if err := m.Lookup(&pidKey, &retrievedValue); err != nil {
+			log.Fatalf("failed to read from map: %v", err)
+		}
+
+		// 将 [100]int8 转换回字符串进行打印
+		log.Infof("Retrieved value: Pod: %s, Container: %s, PID: %d\n",
+			int8ArrayToString(retrievedValue.Pod),
+			int8ArrayToString(retrievedValue.Container),
+			retrievedValue.Pid)
+
 	}
-
-	// 将 [100]int8 转换回字符串进行打印
-	log.Infof("Retrieved value: Pod: %s, Container: %s, PID: %d\n",
-		int8ArrayToString(retrievedValue.Pod),
-		int8ArrayToString(retrievedValue.Container),
-		retrievedValue.Pid)
 	return nil
 }
 
