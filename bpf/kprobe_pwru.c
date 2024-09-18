@@ -169,8 +169,44 @@ struct
     __uint(max_entries, 1);
 } start_ts SEC(".maps");
 
-// 获取当前 dentry 中完整的目录，用于获取文件、挂载目录
-static __always_inline int get_full_path(struct dentry *dentry, char *path, int buf_size)
+static __always_inline int process_dentry(struct dentry **dentry, struct dentry *root, char *path, int *offset)
+{
+    struct dentry *parent;
+    struct qstr dname;
+
+    if (bpf_probe_read_kernel(&dname, sizeof(dname), (void *)&(*dentry)->d_name) < 0)
+        return -1;
+
+    size_t name_len = 30;
+    if (name_len > *offset)
+        name_len = *offset;
+
+    if (*offset < name_len)
+        return -1;
+
+    *offset -= name_len;
+
+    if (bpf_probe_read_kernel_str(&path[*offset], name_len, (void *)dname.name) < 0)
+        return -1;
+
+    // 检查并添加分隔符 '/'
+    if (*offset > 0 && path[*offset] != '/')
+    {
+        (*offset)--;
+        path[*offset] = '/';
+    }
+
+    if (bpf_probe_read_kernel(&parent, sizeof(parent), &(*dentry)->d_parent) < 0)
+        return -1;
+
+    if (*dentry == parent || *dentry == root)
+        return -1;
+
+    *dentry = parent;
+    return 0;
+}
+
+static __always_inline int get_full_path(struct dentry *dentry, struct dentry *root, char *path, size_t buf_size)
 {
     int offset = buf_size - 1;
     path[offset] = '\0';
@@ -178,39 +214,8 @@ static __always_inline int get_full_path(struct dentry *dentry, char *path, int 
 #pragma unroll
     for (int i = 0; i < 10; i++)
     {
-        struct dentry *parent;
-        struct qstr dname;
-
-        if (bpf_probe_read_kernel(&dname, sizeof(dname), (void *)&dentry->d_name) < 0)
+        if (process_dentry(&dentry, root, path, &offset) < 0)
             break;
-
-        int name_len = 30;
-        if (name_len > offset)
-            name_len = offset;
-
-        if (offset < name_len)
-            break;
-
-        offset -= name_len;
-        if (bpf_probe_read_kernel(&path[offset], name_len, (void *)dname.name) < 0)
-            break;
-
-        // 检查并添加分隔符 '/'
-        if (offset > 0 && path[offset] != '/')
-        {
-            offset--;
-            path[offset] = '/';
-        }
-
-        // bpf_printk("dname: %s\n", &path[offset]);
-
-        if (bpf_probe_read_kernel(&parent, sizeof(parent), &dentry->d_parent) < 0)
-            break;
-
-        if (dentry == parent)
-            break;
-
-        dentry = parent;
     }
 
     return buf_size - offset - 1;
@@ -259,30 +264,27 @@ kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
         return 0;
     }
 
-    // 获取文件的完整路径
-    int len = get_full_path(de, event.file, sizeof(event.file));
-    if (len <= 0)
-    {
-        return 0;
-    }
-
     // 获取 mount id
     struct vfsmount *vfsmnt = BPF_CORE_READ(&fp, mnt);
     if (!vfsmnt)
         return 0;
+
+    struct dentry *rootDentry = BPF_CORE_READ(vfsmnt, mnt_root);
+    if (!rootDentry)
+        return 0;
+
+    // 获取文件的完整路径
+    int len = get_full_path(de, rootDentry, event.file, sizeof(event.file));
+    if (len <= 0)
+    {
+        return 0;
+    }
 
     struct mount *mnt = container_of(vfsmnt, struct mount, mnt);
     if (!mnt)
         return 0;
 
     event.mount_id = BPF_CORE_READ(mnt, mnt_id);
-
-    // 获取 mount 目录
-    // struct dentry *mnt_mountpoint = BPF_CORE_READ(mnt, mnt_mountpoint);
-    // if (!mnt_mountpoint)
-    //     return 0;
-
-    // get_full_path(mnt_mountpoint, event.path, sizeof(event.path));
 
     // 输出件到 perf 事件数组
     bpf_perf_event_output(ctx, &rpc_task_map, BPF_F_CURRENT_CPU, &event, sizeof(event));
