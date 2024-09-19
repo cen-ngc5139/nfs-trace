@@ -248,6 +248,12 @@ kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
 
     event.dev_id = BPF_CORE_READ(inode, i_sb, s_dev);
     event.file_id = BPF_CORE_READ(inode, i_ino);
+
+    if (cfg->debug_log)
+    {
+        bpf_printk("Details - dev: %llu, file: %llu\n", event.dev_id, event.file_id);
+    }
+
     event.key = (((u64)event.dev_id) << 32) | (event.file_id & 0xFFFFFFFF);
 
     struct path fp = BPF_CORE_READ(file, f_path);
@@ -518,11 +524,12 @@ int kb_nfs_read_d(struct pt_regs *regs)
     // 更新 io_metrics map
     bpf_map_update_elem(&io_metrics, &key, metrics, BPF_ANY);
 
-    // if (cfg->debug_log)
-    // {
-    //     bpf_printk("Read - dev: %llu, file: %llu, bytes: %u, count: %d, total_bytes: %d, latency: %d\n",
-    //                dev, fileid, res_count, metrics->read_count, metrics->read_size, metrics->read_lat);
-    // }
+    if (cfg->debug_log)
+    {
+        bpf_printk("Read - dev: %llu, file: %llu\n", dev, fileid);
+        // bpf_printk("Read - dev: %llu, file: %llu, bytes: %u, count: %d, total_bytes: %d, latency: %d\n",
+        //            dev, fileid, res_count, metrics->read_count, metrics->read_size, metrics->read_lat);
+    }
 
     return 0;
 }
@@ -575,11 +582,12 @@ int kb_nfs_write_d(struct pt_regs *regs)
     // 更新 io_metrics map
     bpf_map_update_elem(&io_metrics, &key, metrics, BPF_ANY);
 
-    // if (cfg->debug_log)
-    // {
-    //     bpf_printk("Write - dev: %llu, file: %llu, bytes: %u, count: %d, total_bytes: %d, latency: %d\n",
-    //                dev, fileid, res_count, metrics->write_count, metrics->write_size, metrics->write_lat);
-    // }
+    if (cfg->debug_log)
+    {
+        bpf_printk("Write - dev: %llu, file: %llu\n", dev, fileid);
+        // bpf_printk("Write - dev: %llu, file: %llu, bytes: %u, count: %d, total_bytes: %d, latency: %d\n",
+        //            dev, fileid, res_count, metrics->write_count, metrics->write_size, metrics->write_lat);
+    }
 
     return 0;
 }

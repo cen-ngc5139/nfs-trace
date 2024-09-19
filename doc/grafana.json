@@ -16,7 +16,7 @@
   "gnetId": null,
   "graphTooltip": 0,
   "id": 26,
-  "iteration": 1726487722787,
+  "iteration": 1726645096008,
   "links": [],
   "panels": [
     {
@@ -100,7 +100,7 @@
       },
       "yaxes": [
         {
-          "format": "short",
+          "format": "ops",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -173,10 +173,10 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "irate(nfs_write_latencies{node_name=\"$node\",exported_pod=\"$pod\",exported_container=\"$container\"}[5m])",
+          "expr": "irate(nfs_write_latencies{node_name=\"$node\",nfs_pod=\"$pod\",nfs_container=\"$container\"}[5m])",
           "instant": false,
           "interval": "",
-          "legendFormat": "{{exported_pod}}/{{exported_container}} {{nfs_server}}:{{file_path}}",
+          "legendFormat": "{{nfs_server}} {{file_path}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -274,10 +274,10 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "irate(nfs_read_latencies{node_name=\"$node\",exported_pod=\"$pod\",exported_container=\"$container\"}[5m])",
+          "expr": "irate(nfs_read_latencies{node_name=\"$node\",nfs_pod=\"$pod\",nfs_container=\"$container\"}[5m])",
           "instant": false,
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{nfs_server}} {{file_path}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -374,9 +374,9 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "irate(nfs_write_size{node_name=\"$node\",exported_pod=\"$pod\",exported_container=\"$container\"}[5m])",
+          "expr": "irate(nfs_write_size{node_name=\"$node\",nfs_pod=\"$pod\",nfs_container=\"$container\"}[5m])",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{nfs_server}} {{file_path}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -401,7 +401,7 @@
       },
       "yaxes": [
         {
-          "format": "short",
+          "format": "binBps",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -473,9 +473,9 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "irate(nfs_read_size{node_name=\"$node\",exported_pod=\"$pod\",exported_container=\"$container\"}[5m])",
+          "expr": "irate(nfs_read_size{node_name=\"$node\",nfs_pod=\"$pod\",nfs_container=\"$container\"}[5m])",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{nfs_server}} {{file_path}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -500,7 +500,7 @@
       },
       "yaxes": [
         {
-          "format": "short",
+          "format": "Bps",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -572,9 +572,9 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "irate(nfs_write_count{node_name=\"$node\",exported_pod=\"$pod\",exported_container=\"$container\"}[5m])",
+          "expr": "irate(nfs_write_count{node_name=\"$node\",nfs_pod=\"$pod\",nfs_container=\"$container\"}[5m])",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{nfs_server}} {{file_path}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -671,9 +671,9 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "irate(nfs_read_count{node_name=\"$node\",exported_pod=\"$pod\",exported_container=\"$container\"}[5m])",
+          "expr": "irate(nfs_read_count{node_name=\"$node\",nfs_pod=\"$pod\",nfs_container=\"$container\"}[5m])",
           "interval": "",
-          "legendFormat": "",
+          "legendFormat": "{{nfs_server}} {{file_path}}",
           "queryType": "randomWalk",
           "refId": "A"
         }
@@ -802,7 +802,7 @@
           "value": "nacos-1"
         },
         "datasource": "prometheus",
-        "definition": "label_values({__name__=~\"nfs_read_count|nfs_write_count\"}, exported_pod)",
+        "definition": "label_values(nfs_read_count{node_name=\"$node\"}, nfs_pod)",
         "error": null,
         "hide": 0,
         "includeAll": true,
@@ -810,7 +810,7 @@
         "multi": false,
         "name": "pod",
         "options": [],
-        "query": "label_values({__name__=~\"nfs_read_count|nfs_write_count\"}, exported_pod)",
+        "query": "label_values(nfs_read_count{node_name=\"$node\"}, nfs_pod)",
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
@@ -825,11 +825,11 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "nacos",
-          "value": "nacos"
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": "prometheus",
-        "definition": "label_values(nfs_read_count{exported_pod=\"$pod\"}, exported_container)",
+        "definition": "label_values(nfs_read_count{nfs_pod=\"$pod\"}, nfs_container)",
         "error": null,
         "hide": 0,
         "includeAll": true,
@@ -837,7 +837,7 @@
         "multi": false,
         "name": "container",
         "options": [],
-        "query": "label_values(nfs_read_count{exported_pod=\"$pod\"}, exported_container)",
+        "query": "label_values(nfs_read_count{nfs_pod=\"$pod\"}, nfs_container)",
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
@@ -851,12 +851,12 @@
     ]
   },
   "time": {
-    "from": "now-6h",
+    "from": "now-30m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "NFS 流量追踪",
   "uid": "NlBCTCeSz",
-  "version": 46
+  "version": 59
 }
