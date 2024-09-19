@@ -39,7 +39,7 @@ func createCounterVec(name, help string) *prometheus.GaugeVec {
 			Name: name,
 			Help: help,
 		},
-		[]string{"dev_id", "file_id", "node_name", "nfs_server", "file_path", "mount_path", "pod", "container"},
+		[]string{"dev_id", "file_id", "node_name", "nfs_server", "file_path", "mount_path", "nfs_pod", "nfs_container"},
 	)
 }
 

@@ -1,12 +1,11 @@
-{{- if eq .Values.workload.type "deployment" }}
+{{- if eq .Values.workload.type "daemonset" }}
 apiVersion: apps/v1
-kind: Deployment
+kind: DaemonSet
 metadata:
   name: {{ include "nfs-trace.fullname" . }}
   labels:
     {{- include "nfs-trace.labels" . | nindent 4 }}
 spec:
-  replicas: {{ .Values.replicaCount }}
   selector:
     matchLabels:
       {{- include "nfs-trace.selectorLabels" . | nindent 6 }}
