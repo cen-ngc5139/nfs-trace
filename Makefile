@@ -24,7 +24,7 @@ dlv:  build
 	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace -- --filter-struct=$(FILTER_STRUCT) --filter-func="^nfs.*" --all-kmods=true
 
 run:  build
-	./cmd/nfs-trace --filter-struct=$(FILTER_STRUCT) --filter-func="^(vfs_|nfs_).*" --all-kmods=true 
+	./cmd/nfs-trace --filter-struct=$(FILTER_STRUCT) --filter-func="^(vfs_|nfs_).*" --all-kmods=true --enable-debug=true
 
 skip:  build
 	./cmd/nfs-trace --filter-struct=$(FILTER_STRUCT) --skip-attach=true --all-kmods=true --filter-func="^nfs.*"

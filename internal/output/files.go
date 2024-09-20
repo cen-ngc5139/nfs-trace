@@ -1,21 +1,18 @@
 package output
 
 import (
-	"bytes"
 	"context"
-	"errors"
+	"os"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
-	ebinary "encoding/binary"
-
 	"github.com/cen-ngc5139/nfs-trace/internal/binary"
 	"github.com/cen-ngc5139/nfs-trace/internal/cache"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"github.com/cilium/ebpf"
-	"github.com/cilium/ebpf/ringbuf"
+	"github.com/cilium/ebpf/perf"
 	"golang.org/x/sys/unix"
 )
 
@@ -63,7 +60,8 @@ func rebuildPath(segments []binary.KProbePWRUPathSegment) string {
 
 func ProcessFiles(coll *ebpf.Collection, ctx context.Context) {
 	events := coll.Maps["path_ringbuf"]
-	rd, err := ringbuf.NewReader(events)
+	// Set up a perf reader to read events from the eBPF program
+	rd, err := perf.NewReader(events, os.Getpagesize())
 	if err != nil {
 		log.Fatalf("Creating perf reader failed: %v\n", err)
 	}
@@ -72,20 +70,17 @@ func ProcessFiles(coll *ebpf.Collection, ctx context.Context) {
 	pc := NewPathCache()
 	var event binary.KProbePWRUPathSegment
 	for {
-		record, err := rd.Read()
-		if err != nil {
-			if errors.Is(err, ringbuf.ErrClosed) {
-				log.Info("Received signal, exiting..")
-				return
+		for {
+			if err := parseEvent(rd, &event); err == nil {
+				break
 			}
-			log.Errorf("reading from reader: %s", err)
-			continue
-		}
 
-		// Parse the ringbuf event entry into a bpfEvent structure.
-		if err := ebinary.Read(bytes.NewBuffer(record.RawSample), ebinary.LittleEndian, &event); err != nil {
-			log.Errorf("parsing ringbuf event: %s", err)
-			continue
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Microsecond):
+				continue
+			}
 		}
 
 		key := (event.DevId << 32) | event.FileId
@@ -104,8 +99,7 @@ func ProcessFiles(coll *ebpf.Collection, ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Microsecond):
-			continue
+		default:
 		}
 	}
 }
