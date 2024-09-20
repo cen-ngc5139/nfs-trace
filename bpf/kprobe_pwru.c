@@ -112,8 +112,6 @@ struct rpc_task_fields
     char pod[100];
     char container[100];
     u64 caller_addr;
-    char path[100];
-    char file[100];
     u32 dev_id;
     u32 file_id;
     u64 key;
@@ -169,32 +167,57 @@ struct
     __uint(max_entries, 1);
 } start_ts SEC(".maps");
 
-static __always_inline int process_dentry(struct dentry **dentry, struct dentry *root, char *path, int *offset)
+#define MAX_PATH_DEPTH 10
+
+struct path_segment
+{
+    u64 file_id;
+    u64 dev_id;
+    u32 len;
+    u8 is_complete;
+    u8 depth;
+    u8 name[100];
+};
+
+struct path_segment *unused_segment __attribute__((unused));
+
+struct
+{
+    __uint(type, BPF_MAP_TYPE_RINGBUF);
+    __uint(max_entries, 4096);
+} path_ringbuf SEC(".maps");
+
+static __always_inline int process_dentry(struct dentry **dentry, struct dentry *root, u64 file_id, u64 dev_id, u8 depth)
 {
     struct dentry *parent;
     struct qstr dname;
+    struct path_segment *segment;
 
-    if (bpf_probe_read_kernel(&dname, sizeof(dname), (void *)&(*dentry)->d_name) < 0)
+    if (bpf_probe_read_kernel(&dname, sizeof(dname), &(*dentry)->d_name) < 0)
         return -1;
 
-    size_t name_len = 30;
-    if (name_len > *offset)
-        name_len = *offset;
-
-    if (*offset < name_len)
+    segment = bpf_ringbuf_reserve(&path_ringbuf, sizeof(struct path_segment), 0);
+    if (!segment)
         return -1;
 
-    *offset -= name_len;
+    segment->file_id = file_id;
+    segment->dev_id = dev_id;
+    segment->len = dname.len;
+    segment->depth = depth;
+    segment->is_complete = (*dentry == root || depth >= MAX_PATH_DEPTH - 1) ? 1 : 0;
 
-    if (bpf_probe_read_kernel_str(&path[*offset], name_len, (void *)dname.name) < 0)
-        return -1;
-
-    // 检查并添加分隔符 '/'
-    if (*offset > 0 && path[*offset] != '/')
+    if (bpf_probe_read_kernel_str(segment->name, sizeof(segment->name), dname.name) < 0)
     {
-        (*offset)--;
-        path[*offset] = '/';
+        bpf_ringbuf_discard(segment, 0);
+        return -1;
     }
+
+    if (cfg->debug_log)
+    {
+        bpf_printk("segment->name: %s\n", segment->name);
+    }
+
+    bpf_ringbuf_submit(segment, 0);
 
     if (bpf_probe_read_kernel(&parent, sizeof(parent), &(*dentry)->d_parent) < 0)
         return -1;
@@ -206,19 +229,19 @@ static __always_inline int process_dentry(struct dentry **dentry, struct dentry 
     return 0;
 }
 
-static __always_inline int get_full_path(struct dentry *dentry, struct dentry *root, char *path, size_t buf_size)
+static __always_inline int get_full_path(struct dentry *dentry, struct dentry *root, u64 file_id, u64 dev_id)
 {
-    int offset = buf_size - 1;
-    path[offset] = '\0';
+    u8 depth = 0;
 
 #pragma unroll
-    for (int i = 0; i < 10; i++)
+    for (int i = 0; i < MAX_PATH_DEPTH; i++)
     {
-        if (process_dentry(&dentry, root, path, &offset) < 0)
+        if (process_dentry(&dentry, root, file_id, dev_id, depth) < 0)
             break;
+        depth++;
     }
 
-    return buf_size - offset - 1;
+    return 0;
 }
 
 static __always_inline int
@@ -280,11 +303,7 @@ kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
         return 0;
 
     // 获取文件的完整路径
-    int len = get_full_path(de, rootDentry, event.file, sizeof(event.file));
-    if (len <= 0)
-    {
-        return 0;
-    }
+    get_full_path(de, rootDentry, event.file_id, event.dev_id);
 
     struct mount *mnt = container_of(vfsmnt, struct mount, mnt);
     if (!mnt)

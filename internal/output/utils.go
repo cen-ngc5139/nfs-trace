@@ -42,7 +42,7 @@ func parseFileName(bs []int8) string {
 	for _, b := range bs {
 		ba = append(ba, byte(b))
 	}
-	return strings.ReplaceAll(filterNonASCII(ba), "//", "/")
+	return filterNonASCII(ba)
 }
 
 func filterNonASCII(data []byte) string {

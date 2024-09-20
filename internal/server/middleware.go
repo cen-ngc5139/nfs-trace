@@ -7,6 +7,6 @@ import (
 )
 
 func InitPrometheusMetrics(r *gin.Engine) {
-	nfsMetrics := output.NewNFSMetrics(cache.NFSPerformanceMap)
+	nfsMetrics := output.NewNFSMetrics(cache.NFSPerformanceMap, cache.NFSFileDetailMap)
 	r.GET("/metrics", nfsMetrics.MetricsHandler())
 }

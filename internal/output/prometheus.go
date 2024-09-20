@@ -19,6 +19,7 @@ const (
 	NFSWriteSize      = "nfs_write_size"
 	NFSReadLatencies  = "nfs_read_latencies"
 	NFSWriteLatencies = "nfs_write_latencies"
+	NFSFileDetail     = "nfs_file_detail"
 )
 
 // NFSMetrics holds all the NFS related metrics
@@ -29,7 +30,9 @@ type NFSMetrics struct {
 	WriteSize      *prometheus.GaugeVec
 	ReadLatencies  *prometheus.GaugeVec
 	WriteLatencies *prometheus.GaugeVec
+	NFSFileDetail  *prometheus.GaugeVec
 	performanceMap *sync.Map
+	fileInfoMap    *sync.Map
 }
 
 // createCounterVec 创建并注册一个 prometheus.CounterVec
@@ -44,7 +47,7 @@ func createCounterVec(name, help string) *prometheus.GaugeVec {
 }
 
 // NewNFSMetrics 创建并注册 NFS 指标
-func NewNFSMetrics(performanceMap *sync.Map) *NFSMetrics {
+func NewNFSMetrics(performanceMap *sync.Map, fileInfoMap *sync.Map) *NFSMetrics {
 	return &NFSMetrics{
 		ReadCount:      createCounterVec(NFSReadCount, "NFS read count"),
 		WriteCount:     createCounterVec(NFSWriteCount, "NFS write count"),
@@ -52,12 +55,31 @@ func NewNFSMetrics(performanceMap *sync.Map) *NFSMetrics {
 		WriteSize:      createCounterVec(NFSWriteSize, "NFS write size"),
 		ReadLatencies:  createCounterVec(NFSReadLatencies, "NFS read latencies"),
 		WriteLatencies: createCounterVec(NFSWriteLatencies, "NFS write latencies"),
+		NFSFileDetail:  createCounterVec(NFSFileDetail, "NFS file detail"),
 		performanceMap: performanceMap,
+		fileInfoMap:    fileInfoMap,
 	}
+}
+
+func GetDevIDFileID(keyStr uint64) (string, string) {
+	// 假设 keyStr 的格式是 "devID:fileID"
+	devID, fileID := parseKey(keyStr)
+
+	// devID fileID 转换成字符串
+	devIDStr := fmt.Sprintf("%d", devID)
+	fileIDStr := fmt.Sprintf("%d", fileID)
+
+	return devIDStr, fileIDStr
 }
 
 // UpdateMetricsFromCache updates the Prometheus metrics from the NFSPerformanceMap
 func (m *NFSMetrics) UpdateMetricsFromCache(nodeName string) {
+	m.fileInfoMap.Range(func(key, value interface{}) bool {
+		devIDStr, fileIDStr := GetDevIDFileID(key.(uint64))
+		m.NFSFileDetail.WithLabelValues(devIDStr, fileIDStr, nodeName, "", value.(string), "", "", "").Set(1)
+		return true
+	})
+
 	m.performanceMap.Range(func(key, value interface{}) bool {
 		keyStr := key.(uint64)
 		info := value.(metadata.NFSTraceInfo)
