@@ -55,20 +55,17 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Add
 		}
 
 		funcName := addr2name.FindNearestSym(event.CallerAddr)
-		filePath := parseFileName(event.File[:])
-
 		podName := sanitizeString(convertInt8ToString(event.Pod[:]))
 		containerName := sanitizeString(convertInt8ToString(event.Container[:]))
 
-		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \t\t%s \t\t%d \t\t%d \t\t%d \n",
+		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \t\t%d \t\t%d \t\t%d \n",
 			funcName, event.Pid, podName, containerName,
-			mountInfo.LocalMountDir, mountInfo.RemoteNFSAddr, filePath, event.MountId, event.DevId, event.FileId)
+			mountInfo.LocalMountDir, mountInfo.RemoteNFSAddr, event.MountId, event.DevId, event.FileId)
 
 		mount := metadata.NFSFile{
 			MountPath:     mountInfo.LocalMountDir,
 			RemoteNFSAddr: mountInfo.RemoteNFSAddr,
 			LocalMountDir: mountInfo.LocalMountDir,
-			FilePath:      filePath,
 			Pod:           podName,
 			Container:     containerName,
 		}

@@ -22,9 +22,15 @@ var NFSPerformanceMap *sync.Map
 // value: metadata.NFSFile
 var NFSDevIDFileIDFileInfoMap *sync.Map
 
+// NFSFileDetailMap 保存文件的详细信息
+// key: devID+fileID
+// value: string
+var NFSFileDetailMap *sync.Map
+
 func init() {
 	PodContainerPIDMap = new(sync.Map)
 	MountInfoMap = new(sync.Map)
 	NFSPerformanceMap = new(sync.Map)
 	NFSDevIDFileIDFileInfoMap = new(sync.Map)
+	NFSFileDetailMap = new(sync.Map)
 }

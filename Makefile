@@ -21,10 +21,10 @@ build: elf
 	cd ./cmd;CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH)   go build -gcflags "all=-N -l" -o nfs-trace
 
 dlv:  build
-	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace -- --filter-struct=$(FILTER_STRUCT) --filter-func="^nfs.*"  --enable-debug=true --all-kmods=true
+	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace -- --filter-struct=$(FILTER_STRUCT) --filter-func="^nfs.*" --all-kmods=true
 
 run:  build
-	./cmd/nfs-trace --filter-struct=$(FILTER_STRUCT) --filter-func="^(vfs_|nfs_).*" --enable-debug=true --all-kmods=true 
+	./cmd/nfs-trace --filter-struct=$(FILTER_STRUCT) --filter-func="^(vfs_|nfs_).*" --all-kmods=true 
 
 skip:  build
 	./cmd/nfs-trace --filter-struct=$(FILTER_STRUCT) --skip-attach=true --all-kmods=true --filter-func="^nfs.*"
