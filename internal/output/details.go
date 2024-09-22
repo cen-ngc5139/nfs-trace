@@ -58,10 +58,6 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Add
 		podName := sanitizeString(convertInt8ToString(event.Pod[:]))
 		containerName := sanitizeString(convertInt8ToString(event.Container[:]))
 
-		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \t\t%d \t\t%d \t\t%d \n",
-			funcName, event.Pid, podName, containerName,
-			mountInfo.LocalMountDir, mountInfo.RemoteNFSAddr, event.MountId, event.DevId, event.FileId)
-
 		mount := metadata.NFSFile{
 			MountPath:     mountInfo.LocalMountDir,
 			RemoteNFSAddr: mountInfo.RemoteNFSAddr,
@@ -69,6 +65,16 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Add
 			Pod:           podName,
 			Container:     containerName,
 		}
+
+		filePath, ok := cache.NFSFileDetailMap.Load(event.Key)
+		if ok {
+			mount.FilePath = filePath.(string)
+		}
+
+		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \t\t%s \t\t%d \t\t%d \t\t%d \n",
+			funcName, event.Pid, podName, containerName,
+			mountInfo.LocalMountDir, mountInfo.RemoteNFSAddr, filePath, event.MountId, event.DevId, event.FileId)
+
 		// 保存devID+fileID和文件信息的映射关系, 如果已经存在，则覆盖
 		cache.NFSDevIDFileIDFileInfoMap.Store(event.Key, mount)
 
