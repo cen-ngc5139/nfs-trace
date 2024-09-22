@@ -3,10 +3,7 @@
         "list": [
             {
                 "builtIn": 1,
-                "datasource": {
-                    "type": "datasource",
-                    "uid": "grafana"
-                },
+                "datasource": "-- Grafana --",
                 "enable": true,
                 "hide": true,
                 "iconColor": "rgba(0, 211, 255, 1)",
@@ -16,26 +13,19 @@
         ]
     },
     "editable": true,
-    "fiscalYearStartMonth": 0,
+    "gnetId": null,
     "graphTooltip": 0,
-    "id": 5,
+    "id": 28,
+    "iteration": 1726735205348,
     "links": [],
     "panels": [
         {
-            "datasource": {
-                "default": true,
-                "type": "prometheus",
-                "uid": "bdx26uv87tmv4b"
-            },
+            "datasource": "prometheus",
             "fieldConfig": {
                 "defaults": {
                     "custom": {
                         "align": "left",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "filterable": false,
-                        "inspect": false
+                        "filterable": false
                     },
                     "mappings": [],
                     "thresholds": {
@@ -76,15 +66,6 @@
             },
             "id": 2,
             "options": {
-                "cellHeight": "sm",
-                "footer": {
-                    "countRows": false,
-                    "fields": "",
-                    "reducer": [
-                        "sum"
-                    ],
-                    "show": false
-                },
                 "showHeader": true,
                 "sortBy": [
                     {
@@ -93,40 +74,28 @@
                     }
                 ]
             },
-            "pluginVersion": "11.2.0",
+            "pluginVersion": "7.3.4",
             "targets": [
                 {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "bdx26uv87tmv4b"
-                    },
-                    "editorMode": "code",
-                    "expr": "topk(10,\n  sum without(file_path) (\n    irate(nfs_write_count{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range]) > 0\n  )\n) * on(dev_id, file_id) group_right(mount_path, nfs_container, nfs_pod, node_name)\nnfs_file_detail",
+                    "expr": "topk(10, sum by(file_path) (irate(nfs_write_count{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range])>0))",
                     "format": "table",
                     "instant": true,
                     "interval": "",
-                    "legendFormat": "__auto",
+                    "legendFormat": "",
                     "queryType": "randomWalk",
                     "refId": "A"
                 }
             ],
+            "timeFrom": null,
+            "timeShift": null,
             "title": "写 IOPS TOP 10",
             "transformations": [
                 {
                     "id": "organize",
                     "options": {
                         "excludeByName": {
-                            "Time": true,
-                            "dev_id": true,
-                            "file_id": true,
-                            "instance": true,
-                            "job": true,
-                            "mount_path": true,
-                            "nfs_container": true,
-                            "nfs_pod": true,
-                            "node_name": true
+                            "Time": true
                         },
-                        "includeByName": {},
                         "indexByName": {},
                         "renameByName": {
                             "Value": "",
@@ -138,20 +107,12 @@
             "type": "table"
         },
         {
-            "datasource": {
-                "default": true,
-                "type": "prometheus",
-                "uid": "bdx26uv87tmv4b"
-            },
+            "datasource": "prometheus",
             "fieldConfig": {
                 "defaults": {
                     "custom": {
                         "align": "left",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "filterable": false,
-                        "inspect": false
+                        "filterable": false
                     },
                     "mappings": [],
                     "thresholds": {
@@ -192,15 +153,6 @@
             },
             "id": 4,
             "options": {
-                "cellHeight": "sm",
-                "footer": {
-                    "countRows": false,
-                    "fields": "",
-                    "reducer": [
-                        "sum"
-                    ],
-                    "show": false
-                },
                 "showHeader": true,
                 "sortBy": [
                     {
@@ -209,15 +161,10 @@
                     }
                 ]
             },
-            "pluginVersion": "11.2.0",
+            "pluginVersion": "7.3.4",
             "targets": [
                 {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "bdx26uv87tmv4b"
-                    },
-                    "editorMode": "code",
-                    "expr": "topk(10,\n  sum without(file_path) (\n    irate(nfs_write_size{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range]) > 0\n  )\n) * on(dev_id, file_id) group_right(mount_path, nfs_container, nfs_pod, node_name)\nnfs_file_detail",
+                    "expr": "topk(10, sum by(file_path) (irate(nfs_write_size{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range])>0))",
                     "format": "table",
                     "instant": true,
                     "interval": "",
@@ -226,23 +173,16 @@
                     "refId": "A"
                 }
             ],
+            "timeFrom": null,
+            "timeShift": null,
             "title": "写流量 TOP 10",
             "transformations": [
                 {
                     "id": "organize",
                     "options": {
                         "excludeByName": {
-                            "Time": true,
-                            "dev_id": true,
-                            "file_id": true,
-                            "instance": true,
-                            "job": true,
-                            "mount_path": true,
-                            "nfs_container": true,
-                            "nfs_pod": true,
-                            "node_name": true
+                            "Time": true
                         },
-                        "includeByName": {},
                         "indexByName": {},
                         "renameByName": {
                             "Value": "",
@@ -254,20 +194,12 @@
             "type": "table"
         },
         {
-            "datasource": {
-                "default": true,
-                "type": "prometheus",
-                "uid": "bdx26uv87tmv4b"
-            },
+            "datasource": "prometheus",
             "fieldConfig": {
                 "defaults": {
                     "custom": {
                         "align": "left",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "filterable": false,
-                        "inspect": false
+                        "filterable": false
                     },
                     "mappings": [],
                     "thresholds": {
@@ -308,15 +240,6 @@
             },
             "id": 6,
             "options": {
-                "cellHeight": "sm",
-                "footer": {
-                    "countRows": false,
-                    "fields": "",
-                    "reducer": [
-                        "sum"
-                    ],
-                    "show": false
-                },
                 "showHeader": true,
                 "sortBy": [
                     {
@@ -325,15 +248,10 @@
                     }
                 ]
             },
-            "pluginVersion": "11.2.0",
+            "pluginVersion": "7.3.4",
             "targets": [
                 {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "bdx26uv87tmv4b"
-                    },
-                    "editorMode": "code",
-                    "expr": "topk(10,\n  sum without(file_path) (\n    irate(nfs_write_latencies{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range]) > 0\n  )\n) * on(dev_id, file_id) group_right(mount_path, nfs_container, nfs_pod, node_name)\nnfs_file_detail",
+                    "expr": "topk(10, sum by(file_path) (irate(nfs_write_latencies{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range])>0))",
                     "format": "table",
                     "instant": true,
                     "interval": "",
@@ -342,23 +260,16 @@
                     "refId": "A"
                 }
             ],
+            "timeFrom": null,
+            "timeShift": null,
             "title": "写延迟 TOP 10",
             "transformations": [
                 {
                     "id": "organize",
                     "options": {
                         "excludeByName": {
-                            "Time": true,
-                            "dev_id": true,
-                            "file_id": true,
-                            "instance": true,
-                            "job": true,
-                            "mount_path": true,
-                            "nfs_container": true,
-                            "nfs_pod": true,
-                            "node_name": true
+                            "Time": true
                         },
-                        "includeByName": {},
                         "indexByName": {},
                         "renameByName": {
                             "Value": "",
@@ -370,20 +281,12 @@
             "type": "table"
         },
         {
-            "datasource": {
-                "default": true,
-                "type": "prometheus",
-                "uid": "bdx26uv87tmv4b"
-            },
+            "datasource": "prometheus",
             "fieldConfig": {
                 "defaults": {
                     "custom": {
                         "align": "left",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "filterable": false,
-                        "inspect": false
+                        "filterable": false
                     },
                     "mappings": [],
                     "thresholds": {
@@ -424,15 +327,6 @@
             },
             "id": 3,
             "options": {
-                "cellHeight": "sm",
-                "footer": {
-                    "countRows": false,
-                    "fields": "",
-                    "reducer": [
-                        "sum"
-                    ],
-                    "show": false
-                },
                 "showHeader": true,
                 "sortBy": [
                     {
@@ -441,15 +335,10 @@
                     }
                 ]
             },
-            "pluginVersion": "11.2.0",
+            "pluginVersion": "7.3.4",
             "targets": [
                 {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "bdx26uv87tmv4b"
-                    },
-                    "editorMode": "code",
-                    "expr": "topk(10,\n  sum without(file_path) (\n    irate(nfs_read_count{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range]) > 0\n  )\n) * on(dev_id, file_id) group_right(mount_path, nfs_container, nfs_pod, node_name)\nnfs_file_detail",
+                    "expr": "topk(10, sum by(file_path) (irate(nfs_read_count{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range])>0))",
                     "format": "table",
                     "instant": true,
                     "interval": "",
@@ -458,24 +347,16 @@
                     "refId": "A"
                 }
             ],
+            "timeFrom": null,
+            "timeShift": null,
             "title": "读 IOPS TOP 10",
             "transformations": [
                 {
                     "id": "organize",
                     "options": {
                         "excludeByName": {
-                            "Time": true,
-                            "Value": false,
-                            "dev_id": true,
-                            "file_id": true,
-                            "instance": true,
-                            "job": true,
-                            "mount_path": true,
-                            "nfs_container": true,
-                            "nfs_pod": true,
-                            "node_name": true
+                            "Time": true
                         },
-                        "includeByName": {},
                         "indexByName": {},
                         "renameByName": {
                             "Value": "",
@@ -487,20 +368,12 @@
             "type": "table"
         },
         {
-            "datasource": {
-                "default": true,
-                "type": "prometheus",
-                "uid": "bdx26uv87tmv4b"
-            },
+            "datasource": "prometheus",
             "fieldConfig": {
                 "defaults": {
                     "custom": {
                         "align": "left",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "filterable": false,
-                        "inspect": false
+                        "filterable": false
                     },
                     "mappings": [],
                     "thresholds": {
@@ -541,15 +414,6 @@
             },
             "id": 5,
             "options": {
-                "cellHeight": "sm",
-                "footer": {
-                    "countRows": false,
-                    "fields": "",
-                    "reducer": [
-                        "sum"
-                    ],
-                    "show": false
-                },
                 "showHeader": true,
                 "sortBy": [
                     {
@@ -558,15 +422,10 @@
                     }
                 ]
             },
-            "pluginVersion": "11.2.0",
+            "pluginVersion": "7.3.4",
             "targets": [
                 {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "bdx26uv87tmv4b"
-                    },
-                    "editorMode": "code",
-                    "expr": "topk(10,\n  sum without(file_path) (\n    irate(nfs_read_size{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range]) > 0\n  )\n) * on(dev_id, file_id) group_right(mount_path, nfs_container, nfs_pod, node_name)\nnfs_file_detail",
+                    "expr": "topk(10, sum by(file_path) (irate(nfs_read_size{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range])>0))",
                     "format": "table",
                     "instant": true,
                     "interval": "",
@@ -575,23 +434,16 @@
                     "refId": "A"
                 }
             ],
+            "timeFrom": null,
+            "timeShift": null,
             "title": "读流量 TOP 10",
             "transformations": [
                 {
                     "id": "organize",
                     "options": {
                         "excludeByName": {
-                            "Time": true,
-                            "dev_id": true,
-                            "file_id": true,
-                            "instance": true,
-                            "job": true,
-                            "mount_path": true,
-                            "nfs_container": true,
-                            "nfs_pod": true,
-                            "node_name": true
+                            "Time": true
                         },
-                        "includeByName": {},
                         "indexByName": {},
                         "renameByName": {
                             "Value": "",
@@ -603,20 +455,12 @@
             "type": "table"
         },
         {
-            "datasource": {
-                "default": true,
-                "type": "prometheus",
-                "uid": "bdx26uv87tmv4b"
-            },
+            "datasource": "prometheus",
             "fieldConfig": {
                 "defaults": {
                     "custom": {
                         "align": "left",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "filterable": false,
-                        "inspect": false
+                        "filterable": false
                     },
                     "mappings": [],
                     "thresholds": {
@@ -657,15 +501,6 @@
             },
             "id": 7,
             "options": {
-                "cellHeight": "sm",
-                "footer": {
-                    "countRows": false,
-                    "fields": "",
-                    "reducer": [
-                        "sum"
-                    ],
-                    "show": false
-                },
                 "showHeader": true,
                 "sortBy": [
                     {
@@ -674,15 +509,10 @@
                     }
                 ]
             },
-            "pluginVersion": "11.2.0",
+            "pluginVersion": "7.3.4",
             "targets": [
                 {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "bdx26uv87tmv4b"
-                    },
-                    "editorMode": "code",
-                    "expr": "topk(10,\n  sum without(file_path) (\n    irate(nfs_read_latencies{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range]) > 0\n  )\n) * on(dev_id, file_id) group_right(mount_path, nfs_container, nfs_pod, node_name)\nnfs_file_detail",
+                    "expr": "topk(10, sum by(file_path) (irate(nfs_read_latencies{nfs_server=~\"$nfs_server:.*\", nfs_server=~\".*$expose_dir.*\"}[$rate_range])>0))",
                     "format": "table",
                     "instant": true,
                     "interval": "",
@@ -691,23 +521,16 @@
                     "refId": "A"
                 }
             ],
+            "timeFrom": null,
+            "timeShift": null,
             "title": "读延迟 TOP 10",
             "transformations": [
                 {
                     "id": "organize",
                     "options": {
                         "excludeByName": {
-                            "Time": true,
-                            "dev_id": true,
-                            "file_id": true,
-                            "instance": true,
-                            "job": true,
-                            "mount_path": true,
-                            "nfs_container": true,
-                            "nfs_pod": true,
-                            "node_name": true
+                            "Time": true
                         },
-                        "includeByName": {},
                         "indexByName": {},
                         "renameByName": {
                             "Value": "",
@@ -720,70 +543,93 @@
         }
     ],
     "refresh": "10s",
-    "schemaVersion": 39,
+    "schemaVersion": 26,
+    "style": "dark",
     "tags": [],
     "templating": {
         "list": [
             {
+                "allValue": null,
                 "current": {
                     "selected": false,
-                    "text": "192.168.200.201",
-                    "value": "192.168.200.201"
+                    "text": "fastdfs-nfs.os.cestc.cn",
+                    "value": "fastdfs-nfs.os.cestc.cn"
                 },
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bdx26uv87tmv4b"
-                },
+                "datasource": "prometheus",
                 "definition": "label_values(nfs_read_count, nfs_server)",
+                "error": null,
                 "hide": 0,
                 "includeAll": false,
+                "label": null,
                 "multi": false,
                 "name": "nfs_server",
-                "options": [],
+                "options": [
+                    {
+                        "selected": true,
+                        "text": "fastdfs-nfs.os.cestc.cn",
+                        "value": "fastdfs-nfs.os.cestc.cn"
+                    },
+                    {
+                        "selected": false,
+                        "text": "os-nfs.os.cestc.cn",
+                        "value": "os-nfs.os.cestc.cn"
+                    }
+                ],
                 "query": "label_values(nfs_read_count, nfs_server)",
-                "refresh": 1,
+                "refresh": 0,
                 "regex": "(.+?):.+",
                 "skipUrlSync": false,
                 "sort": 1,
                 "tagValuesQuery": "",
+                "tags": [],
                 "tagsQuery": "",
                 "type": "query",
                 "useTags": false
             },
             {
+                "allValue": null,
                 "current": {
                     "selected": false,
                     "text": "/data/nfs",
                     "value": "/data/nfs"
                 },
-                "datasource": {
-                    "type": "prometheus",
-                    "uid": "bdx26uv87tmv4b"
-                },
+                "datasource": "prometheus",
                 "definition": "label_values(nfs_read_count{nfs_server=~\"$nfs_server:.*\"}, nfs_server)",
+                "error": null,
                 "hide": 0,
                 "includeAll": false,
+                "label": null,
                 "multi": false,
                 "name": "expose_dir",
-                "options": [],
+                "options": [
+                    {
+                        "selected": true,
+                        "text": "/data/nfs",
+                        "value": "/data/nfs"
+                    }
+                ],
                 "query": "label_values(nfs_read_count{nfs_server=~\"$nfs_server:.*\"}, nfs_server)",
-                "refresh": 1,
+                "refresh": 0,
                 "regex": "/[^:]+:(\\/[^\\/]+\\/[^\\/]+).*/",
                 "skipUrlSync": false,
                 "sort": 0,
                 "tagValuesQuery": "",
+                "tags": [],
                 "tagsQuery": "",
                 "type": "query",
                 "useTags": false
             },
             {
+                "allValue": null,
                 "current": {
-                    "selected": false,
+                    "selected": true,
                     "text": "5m",
                     "value": "5m"
                 },
+                "error": null,
                 "hide": 0,
                 "includeAll": false,
+                "label": null,
                 "multi": false,
                 "name": "rate_range",
                 "options": [
@@ -836,8 +682,7 @@
     },
     "timepicker": {},
     "timezone": "",
-    "title": "NFS 流量追踪-服务器",
+    "title": "NFS 流量追踪-服务器视角",
     "uid": "osDK9VgNk",
-    "version": 12,
-    "weekStart": ""
+    "version": 27
 }

@@ -26,6 +26,8 @@ struct raw_metrics
     u64 write_count;
     u64 write_size;
     u64 write_lat;
+    char pod[100];
+    char container[100];
 };
 
 struct rpc_task_info
@@ -496,11 +498,16 @@ int kb_nfs_read_d(struct pt_regs *regs)
     struct inode *inode;
     struct nfs_pgio_header *hdr;
     u64 current_time = bpf_ktime_get_ns();
+    int pid;
 
     task = (struct rpc_task *)PT_REGS_PARM1(regs);
 
     // 获取 rpc owner pid
-    u32 pid = BPF_CORE_READ(task, tk_owner);
+    if (bpf_probe_read_kernel(&pid, sizeof(pid), &task->tk_owner) < 0)
+    {
+        return 0;
+    }
+
     inode = (struct inode *)PT_REGS_PARM3(regs);
     hdr = (struct nfs_pgio_header *)PT_REGS_PARM2(regs);
 
@@ -520,6 +527,15 @@ int kb_nfs_read_d(struct pt_regs *regs)
         metrics = bpf_map_lookup_elem(&io_metrics, &key);
         if (!metrics)
             return 0;
+    }
+
+    // 使用 pid 到 pid_cgroup_map 中搜索
+    u64 pid_ptr = (u64)pid;
+    struct metadata *metadata = bpf_map_lookup_elem(&pid_cgroup_map, &pid_ptr);
+    if (metadata)
+    {
+        bpf_probe_read_kernel(&metrics->pod, sizeof(metrics->pod), metadata->pod);
+        bpf_probe_read_kernel(&metrics->container, sizeof(metrics->container), metadata->container);
     }
 
     // 计算读操作延迟
@@ -559,7 +575,11 @@ int kb_nfs_write_d(struct pt_regs *regs)
     task = (struct rpc_task *)PT_REGS_PARM1(regs);
 
     // 获取 rpc owner pid
-    pid = BPF_CORE_READ(task, tk_owner);
+    if (bpf_probe_read_kernel(&pid, sizeof(pid), &task->tk_owner) < 0)
+    {
+        return 0;
+    }
+
     inode = (struct inode *)PT_REGS_PARM3(regs);
     hdr = (struct nfs_pgio_header *)PT_REGS_PARM2(regs);
 
@@ -578,6 +598,15 @@ int kb_nfs_write_d(struct pt_regs *regs)
         metrics = bpf_map_lookup_elem(&io_metrics, &key);
         if (!metrics)
             return 0;
+    }
+
+    // 使用 pid 到 pid_cgroup_map 中搜索
+    u64 pid_ptr = (u64)pid;
+    struct metadata *metadata = bpf_map_lookup_elem(&pid_cgroup_map, &pid_ptr);
+    if (metadata)
+    {
+        bpf_probe_read_kernel(&metrics->pod, sizeof(metrics->pod), metadata->pod);
+        bpf_probe_read_kernel(&metrics->container, sizeof(metrics->container), metadata->container);
     }
 
     // 计算写操作延迟

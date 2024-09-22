@@ -19,7 +19,7 @@ const (
 	NFSWriteSize      = "nfs_write_size"
 	NFSReadLatencies  = "nfs_read_latencies"
 	NFSWriteLatencies = "nfs_write_latencies"
-	NFSFileDetail     = "nfs_file_detail"
+	// NFSFileDetail     = "nfs_file_detail"
 )
 
 // NFSMetrics holds all the NFS related metrics
@@ -55,7 +55,7 @@ func NewNFSMetrics(performanceMap *sync.Map, fileInfoMap *sync.Map) *NFSMetrics 
 		WriteSize:      createCounterVec(NFSWriteSize, "NFS write size"),
 		ReadLatencies:  createCounterVec(NFSReadLatencies, "NFS read latencies"),
 		WriteLatencies: createCounterVec(NFSWriteLatencies, "NFS write latencies"),
-		NFSFileDetail:  createCounterVec(NFSFileDetail, "NFS file detail"),
+		// NFSFileDetail:  createCounterVec(NFSFileDetail, "NFS file detail"),
 		performanceMap: performanceMap,
 		fileInfoMap:    fileInfoMap,
 	}
@@ -74,11 +74,11 @@ func GetDevIDFileID(keyStr uint64) (string, string) {
 
 // UpdateMetricsFromCache updates the Prometheus metrics from the NFSPerformanceMap
 func (m *NFSMetrics) UpdateMetricsFromCache(nodeName string) {
-	m.fileInfoMap.Range(func(key, value interface{}) bool {
-		devIDStr, fileIDStr := GetDevIDFileID(key.(uint64))
-		m.NFSFileDetail.WithLabelValues(devIDStr, fileIDStr, nodeName, "", value.(string), "", "", "").Set(1)
-		return true
-	})
+	// m.fileInfoMap.Range(func(key, value interface{}) bool {
+	// 	devIDStr, fileIDStr := GetDevIDFileID(key.(uint64))
+	// 	m.NFSFileDetail.WithLabelValues(devIDStr, fileIDStr, nodeName, "", value.(string), "", "", "").Set(1)
+	// 	return true
+	// })
 
 	m.performanceMap.Range(func(key, value interface{}) bool {
 		keyStr := key.(uint64)
