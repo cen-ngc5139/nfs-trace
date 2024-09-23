@@ -60,7 +60,16 @@ nodeSelector: {}
 
 tolerations: []
 
-affinity: {}
+affinity:
+  {}
+  # nodeAffinity:
+  # requiredDuringSchedulingIgnoredDuringExecution:
+  #   nodeSelectorTerms:
+  #   - matchExpressions:
+  #     - key: custom-node-label-key
+  #       operator: In
+  #       values:
+  #       - custom-node-label-value
 
 serviceMonitor:
   enabled: false
