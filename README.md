@@ -1,104 +1,108 @@
 # NFS Trace
 
-NFS Trace is a powerful tool designed to monitor and analyze NFS (Network File System) operations using eBPF technology. It provides real-time insights into NFS performance metrics and helps diagnose issues in distributed file systems.
+NFS Trace 是一个强大的工具，使用 eBPF 技术监控和分析 NFS（网络文件系统）操作。它提供了 NFS 性能指标的实时洞察，并帮助诊断分布式文件系统中的问题。
 
-## Features
+## 功能
 
-- Real-time monitoring of NFS read and write operations
-- Performance metrics collection (IOPS, latency, throughput)
-- Kubernetes integration for pod-level NFS usage tracking
-- Prometheus metrics export for easy integration with monitoring systems
-- Customizable function probing and filtering
+- 实时监控 NFS 读写操作
+- 性能指标收集（IOPS、延迟、吞吐量）
+- Kubernetes 集成，用于 Pod 级别的 NFS 使用跟踪
+- Prometheus 指标导出，便于与监控系统集成
+- 可定制的函数探测和过滤
 
-## Prerequisites
+## 前提条件
 
-- Linux kernel 4.19+ with BTF support
+- 支持 BTF 的 Linux 内核 4.19+
 - Go 1.22+
-- Kubernetes cluster (for K8s integration)
+- Kubernetes 集群（用于 K8s 集成）
 
-Tested operating systems and kernel versions:
+已测试的操作系统和内核版本：
 - KylinOS 10 SP3 (ARM64) - kernel 4.19.90
 - Ubuntu 24.04 (AMD64) - kernel 6.8.0
 - Ubuntu 22.04 (AMD64) - kernel 5.15.0
+- Alibaba Cloud Linux OS 3 (AMD64) - kernel 5.10.134-16.3.al8
 
-## Installation
+## 安装
 
-1. Clone the repository:
-   ```
+1. 克隆仓库：
+   ```bash
    git clone https://github.com/cen-ngc5139/nfs-trace.git
    cd nfs-trace
    ```
 
-2. Build the project:
-   ```
+2. 构建项目：
+   ```bash
    make build
    ```
 
-## Usage
+## 使用
 
-Run NFS Trace with default settings:
+使用默认设置运行 NFS Trace：
 
 ```
 ./nfs-trace
 ```
 
-For more advanced usage and configuration options:
+获取更多高级用法和配置选项：
 
 ```
 ./nfs-trace --help
 ```
 
-## Configuration
+### 阿里云 OS 专门启动方式
 
-NFS Trace supports various command-line flags for customization. Some key options include:
+在阿里云 OS 上启动监控时，可以使用 `--kernel-btf` 参数指定 BTF 文件。以下是具体的启动命令示例：
 
-
-```20:35:internal/types.go
-func (f *Flags) SetFlags() {
-	flag.StringVar(&f.FilterFunc, "filter-func", "", "filter kernel functions to be probed by name (exact match, supports RE2 regular expression)")
-	flag.StringVar(&f.FilterStruct, "filter-struct", "", "filter kernel structs to be probed by name (ex. sk_buff/rpc_task)")
-	flag.StringVar(&f.KernelBTF, "kernel-btf", "", "specify kernel BTF file")
-	flag.StringVar(&f.ModelBTF, "model-btf-dir", "", "specify kernel model BTF dir")
-	flag.BoolVar(&f.AllKMods, "all-kmods", false, "attach to all available kernel modules")
-	flag.BoolVar(&f.SkipAttach, "skip-attach", false, "skip attaching kprobes")
-	flag.StringVar(&f.AddFuncs, "add-funcs", "", "add functions to be probed by name (ex. rpc_task:1,sk_buff:2)")
-	flag.IntVar(&f.LogLevel, "log-level", 2, "set log level(ex. 0: no log, 1: error, 2: info, 3: debug)")
-	flag.BoolVar(&f.OutputDetails, "output-details", false, "output details of the probed functions")
-	flag.BoolVar(&f.OutPerformanceMetrics, "output-metrics", false, "output performance metrics")
-	// 禁用 klog 的默认输出
-	flag.Set("logtostderr", "false")
-	flag.Set("alsologtostderr", "false")
-	flag.Set("log_file", "")
-}
+```
+./nfs-trace --kernel-btf=./deploy/btf/linux-5.10.134-16.3.al8-vmlinux.btf
 ```
 
+请确保 `linux-5.10.134-16.3.al8-vmlinux.btf` 文件位于 `./deploy/btf/` 目录下。
 
-## Metrics
+## 配置
 
-NFS Trace collects and exports the following metrics:
+NFS Trace 支持各种命令行标志进行自定义。主要选项包括：
 
-- NFS read/write count
-- NFS read/write size
-- NFS read/write latencies
+```
+- `--filter-func`：通过名称过滤要探测的内核函数（精确匹配，支持 RE2 正则表达式）
+- `--filter-struct`：通过名称过滤要探测的内核结构体（例如：sk_buff/rpc_task）
+- `--kernel-btf`：指定内核 BTF 文件
+- `--model-btf-dir`：指定内核模型 BTF 目录
+- `--all-kmods`：附加到所有可用的内核模块
+- `--skip-attach`：跳过附加 kprobes
+- `--add-funcs`：添加要探测的函数名称（例如：rpc_task:1,sk_buff:2）
+- `--log-level`：设置日志级别（例如：0：无日志，1：错误，2：信息，3：调试）
+- `--output-details`：输出探测函数的详细信息
+- `--output-metrics`：输出性能指标
+- `--enable-debug`：启用调试模式
+```
 
-These metrics are available via Prometheus endpoint at `/metrics`.
+## 指标
 
-## Kubernetes Integration
+NFS Trace 收集并导出以下指标：
 
-NFS Trace can be deployed as a DaemonSet in your Kubernetes cluster to monitor NFS operations across all nodes. It provides pod-level visibility into NFS usage.
+- NFS 读/写次数
+- NFS 读/写大小
+- NFS 读/写延迟
 
-## Contributing
+这些指标可以通过 `/metrics` 的 Prometheus 端点获取。
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+## Kubernetes 集成
 
-## License
+NFS Trace 可以作为 DaemonSet 部署在您的 Kubernetes 集群中，以监控所有节点上的 NFS 操作。它提供了 Pod 级别的 NFS 使用可见性。
 
-This project is licensed under the Dual BSD/GPL License - see the [LICENSE](LICENSE) file for details.
+## 贡献
 
-## Acknowledgments
+欢迎贡献！请随时提交 Pull Request。
 
-- [Cilium eBPF](https://github.com/cilium/ebpf) library
+## 许可证
+
+本项目采用 Dual BSD/GPL 许可证 - 详见 [LICENSE](LICENSE) 文件。
+
+## 致谢
+
+- [Cilium eBPF](https://github.com/cilium/ebpf) 库
 - [Gin Web Framework](https://github.com/gin-gonic/gin)
 - [Prometheus Go Client](https://github.com/prometheus/client_golang)
 
-For more information on the implementation details, please refer to the source code and comments within the project.
+有关实现细节的更多信息，请参阅项目中的源代码和注释。

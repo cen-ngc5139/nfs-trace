@@ -15,8 +15,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 26,
-  "iteration": 1726645096008,
+  "id": 32,
+  "iteration": 1727074686360,
   "links": [],
   "panels": [
     {
@@ -753,12 +753,12 @@
             "value": "node2"
           },
           {
-            "selected": true,
+            "selected": false,
             "text": "node3",
             "value": "node3"
           },
           {
-            "selected": false,
+            "selected": true,
             "text": "node4",
             "value": "node4"
           },
@@ -798,11 +798,11 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "nacos-1",
-          "value": "nacos-1"
+          "text": "mysql-operator-0",
+          "value": "mysql-operator-0"
         },
         "datasource": "prometheus",
-        "definition": "label_values(nfs_read_count{node_name=\"$node\"}, nfs_pod)",
+        "definition": "label_values({__name__=~\"nfs_write_count|nfs_read_count\",node_name=\"$node\"}, nfs_pod)",
         "error": null,
         "hide": 0,
         "includeAll": true,
@@ -810,7 +810,7 @@
         "multi": false,
         "name": "pod",
         "options": [],
-        "query": "label_values(nfs_read_count{node_name=\"$node\"}, nfs_pod)",
+        "query": "label_values({__name__=~\"nfs_write_count|nfs_read_count\",node_name=\"$node\"}, nfs_pod)",
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
@@ -829,7 +829,7 @@
           "value": "$__all"
         },
         "datasource": "prometheus",
-        "definition": "label_values(nfs_read_count{nfs_pod=\"$pod\"}, nfs_container)",
+        "definition": "label_values({__name__=~\"nfs_write_count|nfs_read_count\",node_name=\"$node\",nfs_pod=\"$pod\"}, nfs_container)",
         "error": null,
         "hide": 0,
         "includeAll": true,
@@ -837,7 +837,7 @@
         "multi": false,
         "name": "container",
         "options": [],
-        "query": "label_values(nfs_read_count{nfs_pod=\"$pod\"}, nfs_container)",
+        "query": "label_values({__name__=~\"nfs_write_count|nfs_read_count\",node_name=\"$node\",nfs_pod=\"$pod\"}, nfs_container)",
         "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
@@ -851,12 +851,12 @@
     ]
   },
   "time": {
-    "from": "now-30m",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
-  "title": "NFS 流量追踪",
+  "title": "NFS 流量追踪-客户端视角",
   "uid": "NlBCTCeSz",
-  "version": 59
+  "version": 4
 }

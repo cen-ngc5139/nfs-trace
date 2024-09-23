@@ -99,12 +99,24 @@ func (m *NFSMetrics) UpdateMetricsFromCache(nodeName string) {
 		container := file.Container
 
 		// 更新所有指标
-		m.ReadCount.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.ReadCount))
-		m.WriteCount.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.WriteCount))
-		m.ReadSize.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.ReadSize))
-		m.WriteSize.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.WriteSize))
-		m.ReadLatencies.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.ReadLat))
-		m.WriteLatencies.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.WriteLat))
+		if metrics.ReadCount > 0 {
+			m.ReadCount.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.ReadCount))
+		}
+		if metrics.WriteCount > 0 {
+			m.WriteCount.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.WriteCount))
+		}
+		if metrics.ReadSize > 0 {
+			m.ReadSize.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.ReadSize))
+		}
+		if metrics.WriteSize > 0 {
+			m.WriteSize.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.WriteSize))
+		}
+		if metrics.ReadLat > 0 {
+			m.ReadLatencies.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.ReadLat))
+		}
+		if metrics.WriteLat > 0 {
+			m.WriteLatencies.WithLabelValues(devIDStr, fileIDStr, nodeName, nfsServer, filePath, mountPath, pod, container).Set(float64(metrics.WriteLat))
+		}
 
 		return true
 	})
