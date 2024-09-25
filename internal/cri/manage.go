@@ -2,7 +2,7 @@ package cri
 
 import (
 	"fmt"
-	"os"
+	"net"
 )
 
 type Handler interface {
@@ -11,17 +11,17 @@ type Handler interface {
 
 // GetCriType 获取 CRI 类型
 func GetCriType() string {
-	// 检查 containerd socket 是否存在
-	if _, err := os.Stat("/run/containerd/containerd.sock"); err == nil {
+	// 检查 containerd 是否正在运行
+	if isRuntimeRunning("/run/containerd/containerd.sock") {
 		return "containerd"
 	}
 
-	// 检查 docker socket 是否存在
-	if _, err := os.Stat("/var/run/docker.sock"); err == nil {
+	// 检查 docker 是否正在运行
+	if isRuntimeRunning("/var/run/docker.sock") {
 		return "docker"
 	}
 
-	// 如果都不存在，返回 "unknown"
+	// 如果都不在运行，返回 "unknown"
 	return "unknown"
 }
 
@@ -45,4 +45,13 @@ func GetPids(containerID string) ([]int, error) {
 		return nil, err
 	}
 	return handler.GetPids()
+}
+
+func isRuntimeRunning(socketPath string) bool {
+	conn, err := net.Dial("unix", socketPath)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }
