@@ -6,6 +6,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/cen-ngc5139/nfs-trace/internal/config"
 )
 
 type ksym struct {
@@ -53,7 +55,7 @@ func ParseKallsyms(funcs Funcs, all bool) (Addr2Name, BpfProgName2Addr, error) {
 	}
 	n2a := BpfProgName2Addr{}
 
-	file, err := os.Open("/proc/kallsyms")
+	file, err := os.Open(config.GetProcPath("kallsyms"))
 	if err != nil {
 		return a2n, n2a, err
 	}

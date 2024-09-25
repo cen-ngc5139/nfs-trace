@@ -15,8 +15,8 @@
     "editable": true,
     "gnetId": null,
     "graphTooltip": 0,
-    "id": 28,
-    "iteration": 1726735205348,
+    "id": 26,
+    "iteration": 1727250142070,
     "links": [],
     "panels": [
         {
@@ -542,7 +542,7 @@
             "type": "table"
         }
     ],
-    "refresh": "10s",
+    "refresh": "1m",
     "schemaVersion": 26,
     "style": "dark",
     "tags": [],
@@ -552,8 +552,8 @@
                 "allValue": null,
                 "current": {
                     "selected": false,
-                    "text": "fastdfs-nfs.os.cestc.cn",
-                    "value": "fastdfs-nfs.os.cestc.cn"
+                    "text": "nfs.example.cn",
+                    "value": "nfs.example.cn"
                 },
                 "datasource": "prometheus",
                 "definition": "label_values(nfs_read_count, nfs_server)",
@@ -563,20 +563,9 @@
                 "label": null,
                 "multi": false,
                 "name": "nfs_server",
-                "options": [
-                    {
-                        "selected": true,
-                        "text": "fastdfs-nfs.os.cestc.cn",
-                        "value": "fastdfs-nfs.os.cestc.cn"
-                    },
-                    {
-                        "selected": false,
-                        "text": "os-nfs.os.cestc.cn",
-                        "value": "os-nfs.os.cestc.cn"
-                    }
-                ],
+                "options": [],
                 "query": "label_values(nfs_read_count, nfs_server)",
-                "refresh": 0,
+                "refresh": 2,
                 "regex": "(.+?):.+",
                 "skipUrlSync": false,
                 "sort": 1,
@@ -601,15 +590,9 @@
                 "label": null,
                 "multi": false,
                 "name": "expose_dir",
-                "options": [
-                    {
-                        "selected": true,
-                        "text": "/data/nfs",
-                        "value": "/data/nfs"
-                    }
-                ],
+                "options": [],
                 "query": "label_values(nfs_read_count{nfs_server=~\"$nfs_server:.*\"}, nfs_server)",
-                "refresh": 0,
+                "refresh": 2,
                 "regex": "/[^:]+:(\\/[^\\/]+\\/[^\\/]+).*/",
                 "skipUrlSync": false,
                 "sort": 0,
@@ -684,5 +667,5 @@
     "timezone": "",
     "title": "NFS 流量追踪-服务器视角",
     "uid": "osDK9VgNk",
-    "version": 27
+    "version": 4
 }
