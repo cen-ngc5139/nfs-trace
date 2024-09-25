@@ -53,12 +53,16 @@ spec:
           volumeMounts:
             - name: sys
               mountPath: /sys
+              readOnly: true
             - name: proc
-              mountPath: /proc
+              mountPath: /host/proc
+              readOnly: true
             - name: modules
               mountPath: /lib/modules
+              readOnly: true
             - name: debug
               mountPath: /sys/kernel/debug
+              readOnly: true
             - name: docker-sock
               mountPath: /var/run/docker.sock
             - name: containerd-sock
