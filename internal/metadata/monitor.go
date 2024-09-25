@@ -2,6 +2,8 @@ package metadata
 
 import (
 	"bufio"
+
+	"github.com/cen-ngc5139/nfs-trace/internal/config"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
 
 	"os"
@@ -77,7 +79,7 @@ func (m *MountInfoMonitor) poll() {
 }
 
 func (m *MountInfoMonitor) checkMountInfo() {
-	mountInfo, err := ParseMountInfo("/proc/self/mountinfo")
+	mountInfo, err := ParseMountInfo(config.GetProcPath("self/mountinfo"))
 	if err != nil {
 		log.Errorf("解析 mountinfo 失败: %v", err)
 		return

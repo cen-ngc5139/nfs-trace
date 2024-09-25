@@ -15,8 +15,8 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 32,
-  "iteration": 1727074686360,
+  "id": 25,
+  "iteration": 1727233472674,
   "links": [],
   "panels": [
     {
@@ -729,9 +729,9 @@
       {
         "allValue": null,
         "current": {
-          "selected": true,
-          "text": "node3",
-          "value": "node3"
+          "selected": false,
+          "text": "node1",
+          "value": "node1"
         },
         "datasource": "prometheus",
         "definition": "label_values(kube_pod_info, node)",
@@ -741,50 +741,9 @@
         "label": null,
         "multi": false,
         "name": "node",
-        "options": [
-          {
-            "selected": false,
-            "text": "node1",
-            "value": "node1"
-          },
-          {
-            "selected": false,
-            "text": "node2",
-            "value": "node2"
-          },
-          {
-            "selected": false,
-            "text": "node3",
-            "value": "node3"
-          },
-          {
-            "selected": true,
-            "text": "node4",
-            "value": "node4"
-          },
-          {
-            "selected": false,
-            "text": "component-data-nn-master1",
-            "value": "component-data-nn-master1"
-          },
-          {
-            "selected": false,
-            "text": "component-data-nn-master2",
-            "value": "component-data-nn-master2"
-          },
-          {
-            "selected": false,
-            "text": "component-data-dn-node1",
-            "value": "component-data-dn-node1"
-          },
-          {
-            "selected": false,
-            "text": "main",
-            "value": "main"
-          }
-        ],
+        "options": [],
         "query": "label_values(kube_pod_info, node)",
-        "refresh": 0,
+        "refresh": 2,
         "regex": "",
         "skipUrlSync": false,
         "sort": 0,
@@ -798,8 +757,8 @@
         "allValue": null,
         "current": {
           "selected": false,
-          "text": "mysql-operator-0",
-          "value": "mysql-operator-0"
+          "text": "All",
+          "value": "$__all"
         },
         "datasource": "prometheus",
         "definition": "label_values({__name__=~\"nfs_write_count|nfs_read_count\",node_name=\"$node\"}, nfs_pod)",
@@ -858,5 +817,5 @@
   "timezone": "",
   "title": "NFS 流量追踪-客户端视角",
   "uid": "NlBCTCeSz",
-  "version": 4
+  "version": 3
 }

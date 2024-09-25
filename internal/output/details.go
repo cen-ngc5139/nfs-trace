@@ -10,6 +10,7 @@ import (
 	ebpfbinary "github.com/cen-ngc5139/nfs-trace/internal/binary"
 	"github.com/cen-ngc5139/nfs-trace/internal/bpf"
 	"github.com/cen-ngc5139/nfs-trace/internal/cache"
+	"github.com/cen-ngc5139/nfs-trace/internal/config"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
 	"github.com/cilium/ebpf"
@@ -42,7 +43,8 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Add
 			}
 		}
 
-		mountList, err := metadata.ParseMountInfo(fmt.Sprintf("/proc/%d/mountinfo", event.Pid))
+		mountPath := config.GetProcPath(fmt.Sprintf("%d/mountinfo", event.Pid))
+		mountList, err := metadata.ParseMountInfo(mountPath)
 		if err != nil {
 			klog.Errorf("Failed to get mount info: %v", err)
 			continue
