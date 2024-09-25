@@ -20,7 +20,7 @@ NFS Trace 是一个强大的工具，使用 eBPF 技术监控和分析 NFS（网
 - KylinOS 10 SP3 (ARM64) - kernel 4.19.90
 - Ubuntu 24.04 (AMD64) - kernel 6.8.0
 - Ubuntu 22.04 (AMD64) - kernel 5.15.0
-- Alibaba Cloud Linux OS 3 (AMD64) - kernel 5.10.134-16.3.al8
+- Alibaba Cloud Linux OS 3 (AMD64) - kernel 5.10.134-16.3.al8 
 
 ## 安装
 
@@ -89,7 +89,7 @@ NFS Trace 收集并导出以下指标：
 
 ## Kubernetes 集成
 
-NFS Trace 可以作为 DaemonSet 部署在您的 Kubernetes 集群中，以监控所有节点上的 NFS 操作。它提供了 Pod 级别的 NFS 使用可见性。
+NFS Trace 可以作为 DaemonSet / Deployment 部署在您的 Kubernetes 集群中，以监控所有节点上的 NFS 操作。它提供了 Pod 级别的 NFS 使用可见性。
 
 ## 贡献
 
