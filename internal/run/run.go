@@ -216,6 +216,7 @@ func Run(flag bpf.Flags) {
 		{"处理指标", func() error { output.ProcessMetrics(coll, ctx, flag.OutPerformanceMetrics); return nil }},
 		{"处理事件", func() error { output.ProcessEvents(coll, ctx, addr2name); return nil }},
 		{"处理文件", func() error { output.ProcessFiles(coll, ctx); return nil }},
+		{"处理 DNS", func() error { output.ProcessDNS(coll, ctx); return nil }},
 	}
 
 	for _, task := range tasks {

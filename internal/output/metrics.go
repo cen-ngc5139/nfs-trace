@@ -59,6 +59,7 @@ func ProcessMetrics(coll *ebpf.Collection, ctx context.Context, isOutMetrics boo
 
 		select {
 		case <-ctx.Done():
+			log.Infof("退出指标处理")
 			return
 		case <-time.After(time.Second):
 			continue
