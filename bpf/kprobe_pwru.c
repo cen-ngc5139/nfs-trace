@@ -17,6 +17,10 @@ struct config
 
 static volatile const struct config CFG;
 #define cfg (&CFG)
+#define MAX_PKT_SIZE 512
+#define DNS_PORT 53
+#define MAX_DOMAIN_LEN 512
+#define __user
 
 struct raw_metrics
 {
@@ -182,6 +186,21 @@ struct path_segment
 };
 
 struct path_segment *unused_segment __attribute__((unused));
+
+struct dns_event
+{
+    __u32 pid;
+    u32 len;
+    char common[64];
+    char domain[100];
+};
+
+struct dns_event *unused_dns_event __attribute__((unused));
+
+struct
+{
+    __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
+} dns_events SEC(".maps");
 
 struct
 {
@@ -632,6 +651,164 @@ int kb_nfs_write_d(struct pt_regs *regs)
     }
 
     return 0;
+}
+
+/*
+以下代码为获取 DNS 解析信息
+*/
+
+struct iov_iter___v419
+{
+    unsigned int type; /*     0     4 */
+
+    /* XXX 4 bytes hole, try to pack */
+
+    size_t iov_offset; /*     8     8 */
+    size_t count;      /*    16     8 */
+    union
+    {
+        const struct iovec *iov;      /*    24     8 */
+        const struct kvec *kvec;      /*    24     8 */
+        const struct bio_vec *bvec;   /*    24     8 */
+        struct pipe_inode_info *pipe; /*    24     8 */
+    }; /*    24     8 */
+    union
+    {
+        long unsigned int nr_segs; /*    32     8 */
+        struct
+        {
+            int idx;       /*    32     4 */
+            int start_idx; /*    36     4 */
+        }; /*    32     8 */
+    }; /*    32     8 */
+
+    /* size: 40, cachelines: 1, members: 5 */
+    /* sum members: 36, holes: 1, sum holes: 4 */
+    /* last cacheline: 40 bytes */
+} __attribute__((preserve_access_index));
+
+struct iov_iter___v68
+{
+    u8 iter_type;     /*     0     1 */
+    bool nofault;     /*     1     1 */
+    bool data_source; /*     2     1 */
+
+    /* XXX 5 bytes hole, try to pack */
+
+    size_t iov_offset; /*     8     8 */
+    union
+    {
+        struct iovec __ubuf_iovec; /*    16    16 */
+        struct
+        {
+            union
+            {
+                const struct iovec *__iov;  /*    16     8 */
+                const struct kvec *kvec;    /*    16     8 */
+                const struct bio_vec *bvec; /*    16     8 */
+                struct xarray *xarray;      /*    16     8 */
+                void *ubuf;                 /*    16     8 */
+            }; /*    16     8 */
+            size_t count; /*    24     8 */
+        }; /*    16    16 */
+    }; /*    16    16 */
+    union
+    {
+        long unsigned int nr_segs; /*    32     8 */
+        loff_t xarray_start;       /*    32     8 */
+    }; /*    32     8 */
+
+    /* size: 40, cachelines: 1, members: 6 */
+    /* sum members: 35, holes: 1, sum holes: 5 */
+    /* last cacheline: 40 bytes */
+} __attribute__((preserve_access_index));
+
+static inline const struct iovec *iter_iov(const struct iov_iter___v68 *iter)
+{
+    // 0 表示 ITER_UBUF
+    if (iter->iter_type == 0)
+        return (const struct iovec *)&iter->__ubuf_iovec;
+    return iter->__iov;
+}
+
+extern int LINUX_KERNEL_VERSION __kconfig;
+#define iter_iov_addr(iter) (iter_iov(iter)->iov_base + (iter)->iov_offset)
+#define iter_iov_len(iter) (iter_iov(iter)->iov_len - (iter)->iov_offset)
+
+static inline const struct iovec *get_iovec_from_iov_iter(struct iov_iter *iov_iter);
+
+SEC("kprobe/udp_sendmsg")
+int kprobe_udp_recvmsg(struct pt_regs *ctx)
+{
+    struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
+    __u16 dport = BPF_CORE_READ(sk, __sk_common.skc_dport);
+    if (dport != bpf_htons(DNS_PORT))
+    {
+        return 0;
+    }
+
+    struct dns_event query = {};
+    struct msghdr *msg;
+    u32 pid = bpf_get_current_pid_tgid() >> 32;
+
+    if (bpf_probe_read_kernel(&msg, sizeof(msg), &PT_REGS_PARM2(ctx)) != 0 || !msg)
+    {
+        return 0;
+    }
+
+    struct iov_iter iov_iter;
+    if (bpf_probe_read_kernel(&iov_iter, sizeof(iov_iter), &msg->msg_iter) != 0)
+    {
+        return 0;
+    }
+
+    const struct iovec *iov = get_iovec_from_iov_iter(&iov_iter);
+    if (!iov)
+    {
+        return 0;
+    }
+
+    void *iov_base;
+    u32 iov_len;
+    if (bpf_probe_read(&iov_base, sizeof(iov_base), &iov->iov_base) != 0 ||
+        bpf_probe_read(&iov_len, sizeof(iov_len), &iov->iov_len) != 0 ||
+        !iov_base)
+    {
+        return 0;
+    }
+
+    bpf_printk("iov_base: %p, iov_len: %u\n", iov_base, iov_len);
+
+    query.len = iov_len;
+    query.pid = pid;
+    bpf_get_current_comm(query.common, sizeof(query.common));
+
+    u32 read_len = iov_len < sizeof(query.domain) ? iov_len : sizeof(query.domain);
+    if (bpf_probe_read_user(&query.domain, read_len, iov_base + 12) != 0)
+    {
+        return 0;
+    }
+
+    bpf_printk("domain: %s, len: %d\n", query.domain, read_len);
+    bpf_perf_event_output(ctx, &dns_events, BPF_F_CURRENT_CPU, &query, sizeof(query));
+
+    return 0;
+}
+
+static inline const struct iovec *get_iovec_from_iov_iter(struct iov_iter *iov_iter)
+{
+    if (LINUX_KERNEL_VERSION >= KERNEL_VERSION(5, 10, 0) && LINUX_KERNEL_VERSION < KERNEL_VERSION(6, 0, 0))
+        return BPF_CORE_READ(iov_iter, iov);
+    else if (LINUX_KERNEL_VERSION >= KERNEL_VERSION(4, 19, 0) && LINUX_KERNEL_VERSION < KERNEL_VERSION(5, 0, 0))
+        return BPF_CORE_READ((struct iov_iter___v419 *)iov_iter, iov);
+    else if (LINUX_KERNEL_VERSION >= KERNEL_VERSION(6, 8, 0))
+        return iter_iov((struct iov_iter___v68 *)iov_iter);
+    else
+        bpf_printk("Unsupported kernel version: %d.%d.%d\n",
+                   (LINUX_KERNEL_VERSION >> 16) & 0xFF,
+                   (LINUX_KERNEL_VERSION >> 8) & 0xFF,
+                   LINUX_KERNEL_VERSION & 0xFF);
+    return NULL;
 }
 
 char __license[] SEC("license") = "Dual BSD/GPL";

@@ -37,6 +37,7 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Add
 
 			select {
 			case <-ctx.Done():
+				log.Infof("退出事件处理")
 				return
 			case <-time.After(time.Microsecond):
 				continue
@@ -82,6 +83,7 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Add
 
 		select {
 		case <-ctx.Done():
+			log.Infof("退出事件处理")
 			return
 		default:
 		}

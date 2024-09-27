@@ -77,6 +77,7 @@ func ProcessFiles(coll *ebpf.Collection, ctx context.Context) {
 
 			select {
 			case <-ctx.Done():
+				log.Infof("退出文件处理")
 				return
 			case <-time.After(time.Microsecond):
 				continue
@@ -98,6 +99,7 @@ func ProcessFiles(coll *ebpf.Collection, ctx context.Context) {
 
 		select {
 		case <-ctx.Done():
+			log.Infof("退出文件处理")
 			return
 		default:
 		}
