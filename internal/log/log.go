@@ -1,9 +1,11 @@
 package log
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sync"
 
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -126,4 +128,84 @@ func Fatal(args ...interface{}) {
 // Fatalf 写入格式化的致命错误日志并退出程序
 func Fatalf(format string, args ...interface{}) {
 	klog.Fatalf(format, args...)
+}
+
+// MergeToUnstructured 将多个参数合并为一个 map[string]interface{}
+func MergeToUnstructured(args ...interface{}) map[string]interface{} {
+	mergedMap := make(map[string]interface{})
+	for _, arg := range args {
+		unstructured, err := toUnstructured(arg)
+		if err != nil {
+			klog.Warningf("无法转换参数为 unstructured 格式: %v", err)
+			continue
+		}
+		merge(mergedMap, unstructured)
+	}
+	return mergedMap
+}
+
+// merge 递归合并两个 map
+func merge(target, source map[string]interface{}) {
+	for k, v := range source {
+		if existing, ok := target[k]; ok {
+			if existingMap, isMap := existing.(map[string]interface{}); isMap {
+				if sourceMap, isMap := v.(map[string]interface{}); isMap {
+					merge(existingMap, sourceMap)
+				} else {
+					target[k] = v
+				}
+			} else {
+				target[k] = v
+			}
+		} else {
+			target[k] = v
+		}
+	}
+}
+
+// toUnstructured 将任意类型转换为 map[string]interface{}
+func toUnstructured(v interface{}) (map[string]interface{}, error) {
+	switch t := v.(type) {
+	case map[string]interface{}:
+		return t, nil
+	case string:
+		var m map[string]interface{}
+		if err := json.Unmarshal([]byte(t), &m); err == nil {
+			return m, nil
+		}
+		return map[string]interface{}{"value": t}, nil
+	default:
+		if reflect.TypeOf(v).Kind() == reflect.Struct {
+			b, err := json.Marshal(v)
+			if err != nil {
+				return nil, err
+			}
+			var m map[string]interface{}
+			if err := json.Unmarshal(b, &m); err != nil {
+				return nil, err
+			}
+			return m, nil
+		}
+		return map[string]interface{}{"value": v}, nil
+	}
+}
+
+// StdoutOrFile 输出合并后的 JSON 到标准输出或文件
+func StdoutOrFile(outputType string, args ...interface{}) {
+	mergedMap := MergeToUnstructured(args...)
+
+	raw, err := json.Marshal(mergedMap)
+	if err != nil {
+		klog.Errorf("无法将参数转换为 JSON: %v", err)
+		return
+	}
+
+	switch outputType {
+	case "stdout":
+		fmt.Println(string(raw))
+	case "file":
+		klog.Info(string(raw))
+	default:
+		klog.Info(string(raw))
+	}
 }

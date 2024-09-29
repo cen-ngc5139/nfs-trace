@@ -14,13 +14,17 @@ struct config
 {
     u8 debug_log;
 } __attribute__((packed));
-
 static volatile const struct config CFG;
+
 #define cfg (&CFG)
 #define MAX_PKT_SIZE 512
 #define DNS_PORT 53
 #define MAX_DOMAIN_LEN 512
 #define __user
+#ifndef RPC_TASK_VAR
+#define RPC_TASK_VAR nfs_pgio_header
+#endif
+#define MAX_PATH_DEPTH 10
 
 struct raw_metrics
 {
@@ -128,7 +132,7 @@ struct rpc_task_fields *unused_event __attribute__((unused));
 struct
 {
     __uint(type, BPF_MAP_TYPE_PERF_EVENT_ARRAY);
-} rpc_task_map SEC(".maps");
+} nfs_trace_map SEC(".maps");
 
 struct metadata
 {
@@ -144,36 +148,6 @@ struct
     __type(value, struct metadata);
     __uint(max_entries, 1024);
 } pid_cgroup_map SEC(".maps");
-
-#ifndef RPC_TASK_VAR
-#define RPC_TASK_VAR nfs_pgio_header
-#endif
-
-struct
-{
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __type(key, u64);
-    __type(value, u64);
-    __uint(max_entries, 1024);
-} read_count SEC(".maps");
-
-struct
-{
-    __uint(type, BPF_MAP_TYPE_HASH);
-    __type(key, u64);
-    __type(value, u64);
-    __uint(max_entries, 1024);
-} write_count SEC(".maps");
-
-struct
-{
-    __uint(type, BPF_MAP_TYPE_ARRAY);
-    __type(key, u32);
-    __type(value, u64);
-    __uint(max_entries, 1);
-} start_ts SEC(".maps");
-
-#define MAX_PATH_DEPTH 10
 
 struct path_segment
 {
@@ -191,8 +165,8 @@ struct dns_event
 {
     __u32 pid;
     u32 len;
-    char common[64];
-    char domain[100];
+    char common[100];
+    char domain[200];
 };
 
 struct dns_event *unused_dns_event __attribute__((unused));
@@ -327,7 +301,7 @@ kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
     event.mount_id = BPF_CORE_READ(mnt, mnt_id);
 
     // 输出件到 perf 事件数组
-    bpf_perf_event_output(ctx, &rpc_task_map, BPF_F_CURRENT_CPU, &event, sizeof(event));
+    bpf_perf_event_output(ctx, &nfs_trace_map, BPF_F_CURRENT_CPU, &event, sizeof(event));
 
     return BPF_OK;
 }

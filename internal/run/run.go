@@ -22,7 +22,6 @@ import (
 
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 )
@@ -36,7 +35,7 @@ func Run(flag bpf.Flags) {
 	monitor.Start()
 	defer monitor.Stop()
 
-	// Remove memory limit for eBPF programs
+	// 移除 eBPF 程序的内存限制
 	if err := rlimit.RemoveMemlock(); err != nil {
 		log.Fatalf("Failed to remove memlock limit: %v\n", err)
 		os.Exit(1)
@@ -45,7 +44,7 @@ func Run(flag bpf.Flags) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	// Set the rlimit for the number of open file descriptors to 8192.
+	// 设置临时 rlimit
 	if err := unix.Setrlimit(unix.RLIMIT_NOFILE, &unix.Rlimit{
 		Cur: 8192,
 		Max: 8192,
@@ -59,7 +58,7 @@ func Run(flag bpf.Flags) {
 	if flag.KernelBTF != "" {
 		btfSpec, err = btf.LoadSpec(flag.KernelBTF)
 	} else {
-		// load kernel BTF spec from /sys/kernel/btf/vmlinux
+		// 从 /sys/kernel/btf/vmlinux 加载内核 BTF 规范
 		btfSpec, err = btf.LoadKernelSpec()
 	}
 
@@ -74,7 +73,7 @@ func Run(flag bpf.Flags) {
 	// 获取所有内核模块
 	kmods := make([]string, 0)
 	if flag.AllKMods {
-		// get all kernel modules
+		// 获取所有内核模块
 		files, err := os.ReadDir(flag.ModelBTF)
 		if err != nil {
 			log.Fatalf("Failed to read directory: %s", err)
@@ -94,13 +93,13 @@ func Run(flag bpf.Flags) {
 		addFuncs = bpf.SplitCustomFunList(flag.AddFuncs)
 	}
 
-	// filter functions
+	// 获取需要过滤的函数
 	funcs, err := bpf.GetFuncs(flag.FilterFunc, flag.FilterStruct, flag.ModelBTF, btfSpec, kmods, false)
 	if err != nil {
 		log.Fatalf("Failed to get skb-accepting functions: %s", err)
 	}
 
-	// add functions
+	// 添加函数
 	if len(addFuncs) != 0 {
 		funcs = bpf.MergerFunList(funcs, addFuncs)
 	}
@@ -112,7 +111,7 @@ func Run(flag bpf.Flags) {
 		return
 	}
 
-	// get function addresses
+	// 获取函数地址
 	addr2name, _, err := bpf.ParseKallsyms(funcs, true)
 	if err != nil {
 		log.Fatalf("Failed to get function addrs: %s", err)
@@ -122,25 +121,30 @@ func Run(flag bpf.Flags) {
 	opts.Programs.KernelTypes = btfSpec
 	opts.Programs.LogLevel = ebpf.LogLevelInstruction
 
-	// load bpf spec
+	// 加载 ebpf 程序集
 	var bpfSpec *ebpf.CollectionSpec
 	bpfSpec, err = ebpfbinary.LoadKProbePWRU()
 	if err != nil {
 		log.Fatalf("Failed to load bpf spec: %v", err)
 	}
 
-	// 将配置写入到 bpf 程序中
+	// 根据 flag 更新 bpfSpec
+	upateBpfSpecWithFlags(bpfSpec, &flag)
+
+	// 获取配置
 	pwruConfig, err := bpf.GetConfig(&flag)
 	if err != nil {
 		log.Fatalf("Failed to get pwru config: %v", err)
 	}
+
+	// 将配置写入到 bpf 程序中
 	if err := bpfSpec.RewriteConstants(map[string]interface{}{
 		"CFG": pwruConfig,
 	}); err != nil {
 		log.Fatalf("Failed to rewrite config: %v", err)
 	}
 
-	// load ebpf collection, collection is a set of programs
+	// 加载 ebpf 程序集
 	coll, err := ebpf.NewCollectionWithOptions(bpfSpec, opts)
 	if err != nil {
 		var (
@@ -155,28 +159,37 @@ func Run(flag bpf.Flags) {
 	}
 	defer coll.Close()
 
-	trace, hasError, err := bpf.AttachTracepoint(coll)
-	if err != nil {
-		log.Fatalf("Failed to attach tracepoint: %v", err)
-	}
-	defer trace.Detach()
+	// 根据 flag 获取 kprobe 附加关系
+	nfsKprobeProgs := getKprobeAttachMap(&flag)
 
-	// 如果 tracepoint 附加 rpc_task_begin/rpc_task_end 成功
-	// 说明当前内核版本支持以上两个 tracepoint
-	// 则删除 rpc_exit_task 和 rpc_execute 的 kprobe
-	// tracepoint rpc_task_begin/rpc_task_end 挂载点与 kprobe rpc_exit_task/rpc_execute 挂载点冲突
-	nfsKprobeProgs := bpf.NFSKprobeProgs
-	if !hasError {
-		delete(nfsKprobeProgs, "rpc_exit_task")
-		delete(nfsKprobeProgs, "rpc_execute")
+	// 如果启用 NFS 指标，则附加 tracepoint
+	if flag.EnableNFSMetrics {
+		trace, hasError, err := bpf.AttachTracepoint(coll)
+		if err != nil {
+			log.Fatalf("Failed to attach tracepoint: %v", err)
+		}
+		defer trace.Detach()
+
+		// 如果 tracepoint 附加 rpc_task_begin/rpc_task_end 成功
+		// 说明当前内核版本支持以上两个 tracepoint
+		// 则删除 rpc_exit_task 和 rpc_execute 的 kprobe
+		// tracepoint rpc_task_begin/rpc_task_end 挂载点与 kprobe rpc_exit_task/rpc_execute 挂载点冲突
+
+		if !hasError {
+			delete(nfsKprobeProgs, "rpc_exit_task")
+			delete(nfsKprobeProgs, "rpc_execute")
+		}
 	}
 
-	// attach kprobes
+	// 将 NFS 追踪的 kprobe 附加到内核
 	k := bpf.NewKprober(ctx, funcs, coll, addr2name, false, 10)
 	defer k.DetachKprobes()
 
-	c := bpf.NewCustomFuncsKprober(nfsKprobeProgs, coll)
-	defer c.DetachKprobes()
+	if len(nfsKprobeProgs) != 0 {
+		// 将 NFS 追踪的 kprobe 附加到内核
+		c := bpf.NewCustomFuncsKprober(nfsKprobeProgs, coll)
+		defer c.DetachKprobes()
+	}
 
 	log.Info("Listening for events..")
 
@@ -195,43 +208,34 @@ func Run(flag bpf.Flags) {
 		log.Fatalf("Create k8s client failed, error :%v", err)
 	}
 
+	// 监听当前节点容器 pid 变化
 	if err = watch.SyncPodStatus(mgr, stopChan); err != nil {
 		log.Fatalf("Sync pod status failed, error :%v", err)
 	}
 
-	pidMap := coll.Maps["pid_cgroup_map"]
-	queue.Source.WithEbpfMap(pidMap)
-
+	// 容器 pid 变化后，更新 ebpf map
+	queue.Source.WithEbpfMap(coll.Maps["pid_cgroup_map"])
 	go queue.Source.Export()
 
-	s := server.NewServer()
+	// 启动任务管理器，从 ebpf map 中获取数据并进行处理
+	tm := NewTaskManager()
 
-	var wg sync.WaitGroup
+	// 添加任务
 
-	tasks := []struct {
-		name string
-		fn   func() error
-	}{
-		{"服务器", func() error { return s.Start() }},
-		{"处理指标", func() error { output.ProcessMetrics(coll, ctx, flag.OutPerformanceMetrics); return nil }},
-		{"处理事件", func() error { output.ProcessEvents(coll, ctx, addr2name); return nil }},
-		{"处理文件", func() error { output.ProcessFiles(coll, ctx); return nil }},
-		{"处理 DNS", func() error { output.ProcessDNS(coll, ctx); return nil }},
+	tm.Add("处理事件", func() error { output.ProcessEvents(coll, ctx, addr2name, &flag); return nil })
+	tm.Add("处理文件", func() error { output.ProcessFiles(coll, ctx); return nil })
+
+	if flag.EnableNFSMetrics {
+		tm.Add("服务器", func() error { return server.NewServer().Start() })
+		tm.Add("处理指标", func() error { output.ProcessMetrics(coll, ctx, &flag); return nil })
 	}
 
-	for _, task := range tasks {
-		wg.Add(1)
-		go func(t struct {
-			name string
-			fn   func() error
-		}) {
-			defer wg.Done()
-			if err := t.fn(); err != nil {
-				log.Errorf("%s 停止: %v", t.name, err)
-			}
-		}(task)
+	if flag.EnableDNS {
+		tm.Add("处理 DNS", func() error { output.ProcessDNS(coll, ctx, &flag); return nil })
 	}
 
-	// 等待所有 goroutine 结束
-	wg.Wait()
+	// 运行所有任务
+	if err := tm.Run(); err != nil {
+		fmt.Printf("错误: %v\n", err)
+	}
 }
