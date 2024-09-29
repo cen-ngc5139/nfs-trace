@@ -18,8 +18,8 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Addr2Name) {
-	events := coll.Maps["rpc_task_map"]
+func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Addr2Name, flag *bpf.Flags) {
+	events := coll.Maps["nfs_trace_map"]
 	// Set up a perf reader to read events from the eBPF program
 	rd, err := perf.NewReader(events, os.Getpagesize())
 	if err != nil {
@@ -27,7 +27,6 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Add
 	}
 	defer rd.Close()
 
-	fmt.Printf("Addr \t\t PID \t\t Pod Name \t\t Container ID \t\t Mount \t\t NFS Mount \t\t File \t\t MountID \t\t DevID \t\t FileID \n")
 	var event ebpfbinary.KProbePWRURpcTaskFields
 	for {
 		for {
@@ -74,9 +73,7 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Add
 			mount.FilePath = filePath.(string)
 		}
 
-		fmt.Printf("%s \t\t%d \t\t%s \t\t%s \t\t%s \t\t%s \t\t%s \t\t%d \t\t%d \t\t%d \n",
-			funcName, event.Pid, podName, containerName,
-			mountInfo.LocalMountDir, mountInfo.RemoteNFSAddr, filePath, event.MountId, event.DevId, event.FileId)
+		log.StdoutOrFile(flag.OutputType, mount, map[string]interface{}{"funcName": funcName})
 
 		// 保存devID+fileID和文件信息的映射关系, 如果已经存在，则覆盖
 		cache.NFSDevIDFileIDFileInfoMap.Store(event.Key, mount)
