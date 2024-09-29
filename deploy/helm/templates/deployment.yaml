@@ -44,7 +44,7 @@ spec:
               value: "/host/proc"
           args:
             - "-c"
-            - "./nfs-trace --filter-struct=kiocb --filter-func='^nfs.*' --all-kmods=true --add-funcs='nfs_file_direct_read:1,nfs_file_direct_write:1,nfs_swap_rw:1,nfs_file_read:1,nfs_file_write:1'"
+            - "./nfs-trace --filter-struct=kiocb --filter-func='^nfs.*' --all-kmods=true --add-funcs='nfs_file_direct_read:1,nfs_file_direct_write:1,nfs_swap_rw:1,nfs_file_read:1,nfs_file_write:1' --enable-nfs-metrics=true"
           ports:
             - name: http
               containerPort: 8080
