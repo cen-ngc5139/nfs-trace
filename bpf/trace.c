@@ -310,26 +310,26 @@ kprobe_nfs_kiocb(struct kiocb *iocb, struct pt_regs *ctx)
 #define EXPAND_AND_CONCAT(a, b) CONCAT(a, b)
 
 #ifdef HAS_KPROBE_MULTI
-#define PWRU_KPROBE_TYPE "kprobe.multi"
-#define PWRU_HAS_GET_FUNC_IP true
+#define NFSTRACE_KPROBE_TYPE "kprobe.multi"
+#define NFSTRACE_HAS_GET_FUNC_IP true
 #else
-#define PWRU_KPROBE_TYPE "kprobe"
-#define PWRU_HAS_GET_FUNC_IP false
+#define NFSTRACE_KPROBE_TYPE "kprobe"
+#define NFSTRACE_HAS_GET_FUNC_IP false
 #endif /* HAS_KPROBE_MULTI */
 
-#define PWRU_ADD_KPROBE(X)                                                      \
-    SEC(PWRU_KPROBE_TYPE "/skb-" #X)                                            \
+#define NFSTRACE_ADD_KPROBE(X)                                                  \
+    SEC(NFSTRACE_KPROBE_TYPE "/skb-" #X)                                        \
     int kprobe_skb_##X(struct pt_regs *ctx)                                     \
     {                                                                           \
         struct RPC_TASK_VAR *hdr = (struct RPC_TASK_VAR *)PT_REGS_PARM##X(ctx); \
         return EXPAND_AND_CONCAT(kprobe_nfs_, RPC_TASK_VAR)(hdr, ctx);          \
     }
 
-PWRU_ADD_KPROBE(1)
-PWRU_ADD_KPROBE(2)
-PWRU_ADD_KPROBE(3)
-PWRU_ADD_KPROBE(4)
-PWRU_ADD_KPROBE(5)
+NFSTRACE_ADD_KPROBE(1)
+NFSTRACE_ADD_KPROBE(2)
+NFSTRACE_ADD_KPROBE(3)
+NFSTRACE_ADD_KPROBE(4)
+NFSTRACE_ADD_KPROBE(5)
 
 // tracepoint 增加 nfs_readpage_done/nfs_writeback_done 挂载函数用于统计 IOPS
 SEC("tracepoint/nfs/nfs_initiate_read")

@@ -5,17 +5,11 @@ GO_TAGS ?=
 TARGET_GOARCH ?= amd64,arm64
 GOARCH ?= amd64
 GOOS ?= linux
-TARGET=pwru
-INSTALL = $(QUIET)install
-BINDIR ?= /usr/local/bin
 VERSION=$(shell git describe --tags --always)
 FILTER_STRUCT ?= kiocb
-LIBPCAP_ARCH ?= x86_64-unknown-linux-gnu
 # For compiling libpcap and CGO
 CC ?= gcc
 
-TEST_TIMEOUT ?= 5s
-.DEFAULT_GOAL := pwru
 
 build: elf
 	cd ./cmd;CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH)   go build -gcflags "all=-N -l" -o nfs-trace
@@ -35,8 +29,7 @@ funcs:  build
 elf:
 	TARGET_GOARCH=$(TARGET_GOARCH) FILTER_STRUCT=$(FILTER_STRUCT) $(GO_GENERATE)
     	CC=$(CC) GOARCH=$(TARGET_GOARCH) $(GO_BUILD) $(if $(GO_TAGS),-tags $(GO_TAGS)) \
-    		-ldflags "-w -s \
-    		-X 'github.com/cilium/pwru/internal/pwru.Version=${VERSION}'"
+    		-ldflags "-w -s "
 
 image:
 	docker buildx create --use

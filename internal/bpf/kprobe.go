@@ -220,19 +220,19 @@ func NewKprober(ctx context.Context, funcs Funcs, coll *ebpf.Collection, a2n Add
 	ignored := 0
 	bar := pb.StartNew(len(funcs))
 
-	pwruKprobes := make([]Kprobe, 0, len(funcs))
+	traceKprobes := make([]Kprobe, 0, len(funcs))
 	funcsByPos := GetFuncsByPos(funcs)
 	for pos, fns := range funcsByPos {
 		fn, ok := coll.Programs[fmt.Sprintf("kprobe_skb_%d", pos)]
 		if ok {
-			pwruKprobes = append(pwruKprobes, Kprobe{HookFuncs: fns, Prog: fn})
+			traceKprobes = append(traceKprobes, Kprobe{HookFuncs: fns, Prog: fn})
 		} else {
 			ignored += len(fns)
 			bar.Add(len(fns))
 		}
 	}
 
-	if len(pwruKprobes) == 0 {
+	if len(traceKprobes) == 0 {
 		bar.Finish()
 		klog.Exit("No kprobes to attach")
 	}
@@ -242,11 +242,11 @@ func NewKprober(ctx context.Context, funcs Funcs, coll *ebpf.Collection, a2n Add
 	k.kprobeBatch = batch
 
 	if !useKprobeMulti {
-		l, i := AttachKprobes(ctx, bar, pwruKprobes, batch)
+		l, i := AttachKprobes(ctx, bar, traceKprobes, batch)
 		k.links = l
 		ignored += i
 	} else {
-		l, i := AttachKprobeMulti(ctx, bar, pwruKprobes, a2n)
+		l, i := AttachKprobeMulti(ctx, bar, traceKprobes, a2n)
 		k.links = l
 		ignored += i
 	}

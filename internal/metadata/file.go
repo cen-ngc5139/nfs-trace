@@ -12,6 +12,6 @@ type NFSFile struct {
 }
 
 type NFSTraceInfo struct {
-	Traffic binary.KProbePWRURawMetrics `json:"traffic"`
-	File    NFSFile                     `json:"file"`
+	Traffic binary.NFSTraceRawMetrics `json:"traffic"`
+	File    NFSFile                   `json:"file"`
 }

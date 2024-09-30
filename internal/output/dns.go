@@ -22,7 +22,7 @@ func ProcessDNS(coll *ebpf.Collection, ctx context.Context, flag *bpf.Flags) {
 	}
 	defer rd.Close()
 
-	var event binary.KProbePWRUDnsEvent
+	var event binary.NFSTraceDnsEvent
 	for {
 		for {
 			if err := parseEvent(rd, &event); err == nil {
