@@ -27,7 +27,7 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Add
 	}
 	defer rd.Close()
 
-	var event ebpfbinary.KProbePWRURpcTaskFields
+	var event ebpfbinary.NFSTraceRpcTaskFields
 	for {
 		for {
 			if err := parseEvent(rd, &event); err == nil {

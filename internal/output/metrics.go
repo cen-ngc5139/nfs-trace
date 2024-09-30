@@ -21,7 +21,7 @@ func parseKey(key uint64) (devID uint32, fileID uint32) {
 
 func ProcessMetrics(coll *ebpf.Collection, ctx context.Context, flag *bpf.Flags) {
 	events := coll.Maps["io_metrics"]
-	var event ebpfbinary.KProbePWRURawMetrics
+	var event ebpfbinary.NFSTraceRawMetrics
 
 	for {
 		var nextKey uint64

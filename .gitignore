@@ -2,10 +2,11 @@
 e2e
 e2e.tar
 nfs-trace
-kprobepwru_x86_bpfel.go
-kprobepwru_x86_bpfel.o
-kprobepwru_arm64_bpfel.go
-kprobepwru_arm64_bpfel.o
+nfstrace_x86_bpfel.go
+nfstrace_x86_bpfel.o
+nfstrace_arm64_bpfel.go
+nfstrace_arm64_bpfel.o
+
 nfs-trace-linux-arm64
 nfs-trace-linux-amd64
 .vscode

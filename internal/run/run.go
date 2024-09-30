@@ -123,7 +123,7 @@ func Run(flag bpf.Flags) {
 
 	// 加载 ebpf 程序集
 	var bpfSpec *ebpf.CollectionSpec
-	bpfSpec, err = ebpfbinary.LoadKProbePWRU()
+	bpfSpec, err = ebpfbinary.LoadNFSTrace()
 	if err != nil {
 		log.Fatalf("Failed to load bpf spec: %v", err)
 	}
@@ -132,14 +132,14 @@ func Run(flag bpf.Flags) {
 	upateBpfSpecWithFlags(bpfSpec, &flag)
 
 	// 获取配置
-	pwruConfig, err := bpf.GetConfig(&flag)
+	traceConfig, err := bpf.GetConfig(&flag)
 	if err != nil {
-		log.Fatalf("Failed to get pwru config: %v", err)
+		log.Fatalf("Failed to get trace config: %v", err)
 	}
 
 	// 将配置写入到 bpf 程序中
 	if err := bpfSpec.RewriteConstants(map[string]interface{}{
-		"CFG": pwruConfig,
+		"CFG": traceConfig,
 	}); err != nil {
 		log.Fatalf("Failed to rewrite config: %v", err)
 	}

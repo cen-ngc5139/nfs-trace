@@ -18,13 +18,13 @@ import (
 
 type PathCache struct {
 	paths         *sync.Map
-	partialBuffer map[uint64][]binary.KProbePWRUPathSegment
+	partialBuffer map[uint64][]binary.NFSTracePathSegment
 }
 
 func NewPathCache() *PathCache {
 	return &PathCache{
 		paths:         cache.NFSFileDetailMap,
-		partialBuffer: make(map[uint64][]binary.KProbePWRUPathSegment),
+		partialBuffer: make(map[uint64][]binary.NFSTracePathSegment),
 	}
 }
 
@@ -42,7 +42,7 @@ func (pc *PathCache) Set(devID, fileID uint64, path string) {
 }
 
 // rebuildPath 重建路径
-func rebuildPath(segments []binary.KProbePWRUPathSegment) string {
+func rebuildPath(segments []binary.NFSTracePathSegment) string {
 	sort.Slice(segments, func(i, j int) bool {
 		return segments[i].Depth > segments[j].Depth
 	})
@@ -68,7 +68,7 @@ func ProcessFiles(coll *ebpf.Collection, ctx context.Context) {
 	defer rd.Close()
 
 	pc := NewPathCache()
-	var event binary.KProbePWRUPathSegment
+	var event binary.NFSTracePathSegment
 	for {
 		for {
 			if err := parseEvent(rd, &event); err == nil {
