@@ -3,19 +3,34 @@ package config
 import (
 	"fmt"
 	"os"
+
+	"gopkg.in/yaml.v2"
 )
 
 var (
-	// ProcPath 是访问 /proc 文件系统的路径
 	ProcPath string
+	Config   Configuration
 )
 
 func init() {
-	// 从环境变量中获取 PROC_PATH，如果未设置则使用默认值 "/proc"
 	ProcPath = os.Getenv("PROC_PATH")
 	if ProcPath == "" {
 		ProcPath = "/proc"
 	}
+}
+
+func LoadConfig(cfg *Configuration) error {
+	file, err := os.ReadFile(cfg.ConfigPath)
+	if err != nil {
+		return err
+	}
+
+	err = yaml.Unmarshal(file, &cfg)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func GetProcPath(path string) string {

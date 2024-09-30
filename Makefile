@@ -15,7 +15,8 @@ build: elf
 	cd ./cmd;CGO_ENABLED=0 GOOS=$(GOOS) GOARCH=$(GOARCH)   go build -gcflags "all=-N -l" -o nfs-trace
 
 dlv:  build
-	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace -- --filter-struct=$(FILTER_STRUCT) --filter-func="^nfs.*" --all-kmods=true
+	# dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace -- --filter-struct=$(FILTER_STRUCT) --filter-func="^nfs.*" --all-kmods=true
+	dlv --headless --listen=:2345 --api-version=2 exec ./cmd/nfs-trace -- --config-path=./cmd/config.yaml
 
 run:  build
 	./cmd/nfs-trace --filter-struct=$(FILTER_STRUCT) --filter-func="^(vfs_|nfs_).*" --all-kmods=true --enable-nfs-metrics=true --enable-dns=true --enable-debug=true

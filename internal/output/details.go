@@ -18,7 +18,7 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Addr2Name, flag *bpf.Flags) {
+func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Addr2Name, cfg config.Configuration) {
 	events := coll.Maps["nfs_trace_map"]
 	// Set up a perf reader to read events from the eBPF program
 	rd, err := perf.NewReader(events, os.Getpagesize())
@@ -73,7 +73,7 @@ func ProcessEvents(coll *ebpf.Collection, ctx context.Context, addr2name bpf.Add
 			mount.FilePath = filePath.(string)
 		}
 
-		log.StdoutOrFile(flag.OutputType, mount, map[string]interface{}{"funcName": funcName})
+		log.StdoutOrFile(cfg.Output.Type, mount, map[string]interface{}{"funcName": funcName})
 
 		// 保存devID+fileID和文件信息的映射关系, 如果已经存在，则覆盖
 		cache.NFSDevIDFileIDFileInfoMap.Store(event.Key, mount)
