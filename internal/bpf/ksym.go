@@ -3,6 +3,7 @@ package bpf
 import (
 	"bufio"
 	"os"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -69,6 +70,9 @@ func ParseKallsyms(funcs Funcs, all bool) (Addr2Name, BpfProgName2Addr, error) {
 			addr, err := strconv.ParseUint(line[0], 16, 64)
 			if err != nil {
 				return a2n, n2a, err
+			}
+			if addr > uint64(^uintptr(0)) {
+				return a2n, n2a, fmt.Errorf("address out of bounds for uintptr: %v", addr)
 			}
 			sym := &ksym{
 				addr: addr,
