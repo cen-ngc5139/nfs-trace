@@ -7,13 +7,13 @@ import (
 	"time"
 
 	"github.com/cen-ngc5139/nfs-trace/internal/binary"
-	"github.com/cen-ngc5139/nfs-trace/internal/bpf"
+	"github.com/cen-ngc5139/nfs-trace/internal/config"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/perf"
 )
 
-func ProcessDNS(coll *ebpf.Collection, ctx context.Context, flag *bpf.Flags) {
+func ProcessDNS(coll *ebpf.Collection, ctx context.Context, cfg config.Configuration) {
 	events := coll.Maps["dns_events"]
 	// Set up a perf reader to read events from the eBPF program
 	rd, err := perf.NewReader(events, os.Getpagesize())
@@ -41,7 +41,7 @@ func ProcessDNS(coll *ebpf.Collection, ctx context.Context, flag *bpf.Flags) {
 		dname := ParseDNS(event.Domain[:])
 		comm := convertInt8ToString(event.Common[:])
 		if len(dname) != 0 {
-			log.StdoutOrFile(flag.OutputType, map[string]interface{}{
+			log.StdoutOrFile(cfg.Output.Type, map[string]interface{}{
 				"pid":    event.Pid,
 				"comm":   comm,
 				"domain": dname,

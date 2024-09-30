@@ -1,0 +1,18 @@
+filter:
+  func: "^(vfs_|nfs_).*"
+  struct: "kiocb"
+
+probing:
+  all_kmods: true
+  skip_attach: false
+  add_funcs: "nfs_file_direct_read:1,nfs_file_direct_write:1,nfs_swap_rw:1,nfs_file_read:1,nfs_file_write:1"
+
+features:
+  debug: true
+  dns: true
+  nfs_metrics: true
+
+output:
+  type: file
+  file:
+    path: "./log"

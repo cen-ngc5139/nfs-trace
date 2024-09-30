@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/cen-ngc5139/nfs-trace/internal/bpf"
+	"github.com/cen-ngc5139/nfs-trace/internal/config"
 
 	ebpfbinary "github.com/cen-ngc5139/nfs-trace/internal/binary"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
@@ -26,7 +27,15 @@ import (
 	"time"
 )
 
-func Run(flag bpf.Flags) {
+func Run(cfg config.Configuration) {
+	if cfg.ConfigPath != "" {
+		err := config.LoadConfig(&cfg)
+		if err != nil {
+			log.Fatal(err)
+			os.Exit(1)
+		}
+	}
+
 	stopChan := make(chan struct{})
 	defer close(stopChan)
 
@@ -55,8 +64,8 @@ func Run(flag bpf.Flags) {
 	// 获取 BPF 程序的入口函数名
 	var btfSpec *btf.Spec
 	var err error
-	if flag.KernelBTF != "" {
-		btfSpec, err = btf.LoadSpec(flag.KernelBTF)
+	if cfg.BTF.Kernel != "" {
+		btfSpec, err = btf.LoadSpec(cfg.BTF.Kernel)
 	} else {
 		// 从 /sys/kernel/btf/vmlinux 加载内核 BTF 规范
 		btfSpec, err = btf.LoadKernelSpec()
@@ -66,15 +75,15 @@ func Run(flag bpf.Flags) {
 		log.Fatalf("Failed to load BTF spec: %s", err)
 	}
 
-	if len(flag.ModelBTF) == 0 {
-		flag.ModelBTF = "/sys/kernel/btf"
+	if cfg.BTF.ModelDir == "" {
+		cfg.BTF.ModelDir = "/sys/kernel/btf"
 	}
 
 	// 获取所有内核模块
 	kmods := make([]string, 0)
-	if flag.AllKMods {
+	if cfg.Probing.AllKMods {
 		// 获取所有内核模块
-		files, err := os.ReadDir(flag.ModelBTF)
+		files, err := os.ReadDir(cfg.BTF.ModelDir)
 		if err != nil {
 			log.Fatalf("Failed to read directory: %s", err)
 		}
@@ -89,12 +98,12 @@ func Run(flag bpf.Flags) {
 	// 获取需要添加的函数
 	var addFuncs bpf.Funcs
 	addFuncs = make(map[string]int)
-	if flag.AddFuncs != "" {
-		addFuncs = bpf.SplitCustomFunList(flag.AddFuncs)
+	if cfg.Probing.AddFuncs != "" {
+		addFuncs = bpf.SplitCustomFunList(cfg.Probing.AddFuncs)
 	}
 
 	// 获取需要过滤的函数
-	funcs, err := bpf.GetFuncs(flag.FilterFunc, flag.FilterStruct, flag.ModelBTF, btfSpec, kmods, false)
+	funcs, err := bpf.GetFuncs(cfg.Filter.Func, cfg.Filter.Struct, cfg.BTF.ModelDir, btfSpec, kmods, false)
 	if err != nil {
 		log.Fatalf("Failed to get skb-accepting functions: %s", err)
 	}
@@ -106,7 +115,7 @@ func Run(flag bpf.Flags) {
 
 	funcs.ToString()
 
-	if flag.SkipAttach {
+	if cfg.Probing.SkipAttach {
 		log.Info("Skipping attaching kprobes")
 		return
 	}
@@ -129,10 +138,10 @@ func Run(flag bpf.Flags) {
 	}
 
 	// 根据 flag 更新 bpfSpec
-	upateBpfSpecWithFlags(bpfSpec, &flag)
+	upateBpfSpecWithFlags(bpfSpec, cfg)
 
 	// 获取配置
-	traceConfig, err := bpf.GetConfig(&flag)
+	traceConfig, err := bpf.GetConfig(cfg)
 	if err != nil {
 		log.Fatalf("Failed to get trace config: %v", err)
 	}
@@ -160,10 +169,10 @@ func Run(flag bpf.Flags) {
 	defer coll.Close()
 
 	// 根据 flag 获取 kprobe 附加关系
-	nfsKprobeProgs := getKprobeAttachMap(&flag)
+	nfsKprobeProgs := getKprobeAttachMap(cfg)
 
 	// 如果启用 NFS 指标，则附加 tracepoint
-	if flag.EnableNFSMetrics {
+	if cfg.Features.NFSMetrics {
 		trace, hasError, err := bpf.AttachTracepoint(coll)
 		if err != nil {
 			log.Fatalf("Failed to attach tracepoint: %v", err)
@@ -222,16 +231,16 @@ func Run(flag bpf.Flags) {
 
 	// 添加任务
 
-	tm.Add("处理事件", func() error { output.ProcessEvents(coll, ctx, addr2name, &flag); return nil })
+	tm.Add("处理事件", func() error { output.ProcessEvents(coll, ctx, addr2name, cfg); return nil })
 	tm.Add("处理文件", func() error { output.ProcessFiles(coll, ctx); return nil })
 
-	if flag.EnableNFSMetrics {
+	if cfg.Features.NFSMetrics {
 		tm.Add("服务器", func() error { return server.NewServer().Start() })
-		tm.Add("处理指标", func() error { output.ProcessMetrics(coll, ctx, &flag); return nil })
+		tm.Add("处理指标", func() error { output.ProcessMetrics(coll, ctx); return nil })
 	}
 
-	if flag.EnableDNS {
-		tm.Add("处理 DNS", func() error { output.ProcessDNS(coll, ctx, &flag); return nil })
+	if cfg.Features.DNS {
+		tm.Add("处理 DNS", func() error { output.ProcessDNS(coll, ctx, cfg); return nil })
 	}
 
 	// 运行所有任务

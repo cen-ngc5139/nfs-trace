@@ -1,12 +1,12 @@
 package run
 
 import (
-	"github.com/cen-ngc5139/nfs-trace/internal/bpf"
+	"github.com/cen-ngc5139/nfs-trace/internal/config"
 	"github.com/cilium/ebpf"
 )
 
-func upateBpfSpecWithFlags(bpfSpec *ebpf.CollectionSpec, flag *bpf.Flags) {
-	if !flag.EnableNFSMetrics {
+func upateBpfSpecWithFlags(bpfSpec *ebpf.CollectionSpec, cfg config.Configuration) {
+	if !cfg.Features.NFSMetrics {
 		delete(bpfSpec.Programs, "kb_nfs_write_d")
 		delete(bpfSpec.Programs, "kb_nfs_read_d")
 		delete(bpfSpec.Programs, "rpc_exit_task")
@@ -22,16 +22,16 @@ func upateBpfSpecWithFlags(bpfSpec *ebpf.CollectionSpec, flag *bpf.Flags) {
 		delete(bpfSpec.Maps, "io_metrics")
 	}
 
-	if !flag.EnableDNS {
+	if !cfg.Features.DNS {
 		delete(bpfSpec.Programs, "kprobe_udp_recvmsg")
 		delete(bpfSpec.Maps, "dns_events")
 	}
 }
 
-func getKprobeAttachMap(flag *bpf.Flags) map[string]string {
+func getKprobeAttachMap(cfg config.Configuration) map[string]string {
 	attachMap := make(map[string]string)
 
-	if flag.EnableNFSMetrics {
+	if cfg.Features.NFSMetrics {
 		attachMap["kb_nfs_write_d"] = "nfs_writeback_done"
 		attachMap["kb_nfs_read_d"] = "nfs_readpage_done"
 		attachMap["rpc_exit_task"] = "rpc_exit_task"
@@ -39,7 +39,7 @@ func getKprobeAttachMap(flag *bpf.Flags) map[string]string {
 	}
 
 	// 如果未启用 DNS 模式，则删除 kprobe_udp_recvmsg 的 kprobe
-	if flag.EnableDNS {
+	if cfg.Features.DNS {
 		attachMap["kprobe_udp_recvmsg"] = "udp_sendmsg"
 	}
 

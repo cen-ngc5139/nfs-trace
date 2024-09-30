@@ -1,5 +1,9 @@
 package bpf
 
+import (
+	"github.com/cen-ngc5139/nfs-trace/internal/config"
+)
+
 type FilterCfg struct {
 	EnableDebug uint8
 }
@@ -11,9 +15,9 @@ func boolToUint8(b bool) uint8 {
 	return 0
 }
 
-func GetConfig(flags *Flags) (cfg FilterCfg, err error) {
+func GetConfig(flags config.Configuration) (cfg FilterCfg, err error) {
 	cfg = FilterCfg{
-		EnableDebug: boolToUint8(flags.EnableDebug),
+		EnableDebug: boolToUint8(flags.Features.Debug),
 	}
 
 	return

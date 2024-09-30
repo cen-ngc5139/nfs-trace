@@ -5,7 +5,6 @@ import (
 	"time"
 
 	ebpfbinary "github.com/cen-ngc5139/nfs-trace/internal/binary"
-	"github.com/cen-ngc5139/nfs-trace/internal/bpf"
 	"github.com/cen-ngc5139/nfs-trace/internal/cache"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
 	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
@@ -19,7 +18,7 @@ func parseKey(key uint64) (devID uint32, fileID uint32) {
 	return
 }
 
-func ProcessMetrics(coll *ebpf.Collection, ctx context.Context, flag *bpf.Flags) {
+func ProcessMetrics(coll *ebpf.Collection, ctx context.Context) {
 	events := coll.Maps["io_metrics"]
 	var event ebpfbinary.NFSTraceRawMetrics
 
