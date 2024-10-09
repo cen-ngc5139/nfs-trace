@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "nfs-trace.fullname" . }}-config
+data:
+  config.yaml: |
+    filter:
+      func: {{ .Values.nfsTraceConfig.filter.func | quote }}
+      struct: {{ .Values.nfsTraceConfig.filter.struct | quote }}
+
+    probing:
+      all_kmods: {{ .Values.nfsTraceConfig.probing.all_kmods }}
+      skip_attach: {{ .Values.nfsTraceConfig.probing.skip_attach }}
+      add_funcs: {{ .Values.nfsTraceConfig.probing.add_funcs | quote }}
+
+    features:
+      debug: {{ .Values.nfsTraceConfig.features.debug }}
+      dns: {{ .Values.nfsTraceConfig.features.dns }}
+      nfs_metrics: {{ .Values.nfsTraceConfig.features.nfs_metrics }}
+
+    output: {{ .Values.nfsTraceConfig.output | toYaml | nindent 6 }}

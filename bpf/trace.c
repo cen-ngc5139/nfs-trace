@@ -751,7 +751,10 @@ int kprobe_udp_recvmsg(struct pt_regs *ctx)
         return 0;
     }
 
-    bpf_printk("iov_base: %p, iov_len: %u\n", iov_base, iov_len);
+    if (cfg->debug_log)
+    {
+        bpf_printk("iov_base: %p, iov_len: %u\n", iov_base, iov_len);
+    }
 
     query.len = iov_len;
     query.pid = pid;
@@ -763,7 +766,11 @@ int kprobe_udp_recvmsg(struct pt_regs *ctx)
         return 0;
     }
 
-    bpf_printk("domain: %s, len: %d\n", query.domain, read_len);
+    if (cfg->debug_log)
+    {
+        bpf_printk("domain: %s, len: %d\n", query.domain, read_len);
+    }
+
     bpf_perf_event_output(ctx, &dns_events, BPF_F_CURRENT_CPU, &query, sizeof(query));
 
     return 0;
