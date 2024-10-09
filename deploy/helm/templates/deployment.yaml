@@ -34,7 +34,8 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          command: ["/bin/sh"]
+          command: ["/root/nfs-trace"]
+          args: ["--config-path=/app/config"]
           env:
             - name: NODE_NAME
               valueFrom:
@@ -42,9 +43,6 @@ spec:
                   fieldPath: spec.nodeName
             - name: PROC_PATH
               value: "/host/proc"
-          args:
-            - "-c"
-            - "./nfs-trace --filter-struct=kiocb --filter-func='^nfs.*' --all-kmods=true --add-funcs='nfs_file_direct_read:1,nfs_file_direct_write:1,nfs_swap_rw:1,nfs_file_read:1,nfs_file_write:1' --enable-nfs-metrics=true"
           ports:
             - name: http
               containerPort: 8080
@@ -68,6 +66,11 @@ spec:
               mountPath: /var/run/docker.sock
             - name: containerd-sock
               mountPath: /run/containerd/containerd.sock
+            - name: config
+              mountPath: /app/config
+              readOnly: true
+            - name: log
+              mountPath: /app/log
       volumes:
         - name: sys
           hostPath:
@@ -87,6 +90,11 @@ spec:
         - name: containerd-sock
           hostPath:
             path: /run/containerd/containerd.sock
+        - name: config
+          configMap:
+            name: {{ include "nfs-trace.fullname" . }}-config
+        - name: log
+          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
