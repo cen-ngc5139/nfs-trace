@@ -4,6 +4,7 @@ import (
 	"github.com/cen-ngc5139/nfs-trace/internal/cache"
 	"github.com/cen-ngc5139/nfs-trace/internal/cri"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
+	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
 	"github.com/cilium/ebpf"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/klog/v2"
@@ -243,6 +244,13 @@ func updatePidCgroupMap(m *ebpf.Map, containerID, pod, container string) error {
 
 		defer func() {
 			cache.PodContainerPIDMap.LoadOrStore(containerID, pidKey)
+
+			// 保存pid和pod、container的映射关系
+			cache.PidInfoMap.LoadOrStore(pid, metadata.PidInfo{
+				Pid:       pid,
+				Pod:       pod,
+				Container: container,
+			})
 		}()
 
 		// 读取并验证数据（可选）
@@ -284,6 +292,9 @@ func deletePidCgroupMap(m *ebpf.Map, pid string) error {
 		int8ArrayToString(value.Pod),
 		int8ArrayToString(value.Container),
 		value.Pid)
+
+	// 删除pid和pod、container的映射关系
+	cache.PidInfoMap.Delete(pidKeyUint64)
 
 	if err := m.Delete(&pidKeyUint64); err != nil {
 		klog.Errorf("failed to delete pid cgroup map: %v", err)

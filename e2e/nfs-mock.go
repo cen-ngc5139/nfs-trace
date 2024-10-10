@@ -1,11 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"math/rand"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -45,7 +46,7 @@ func simulateNFSWrite(fPath, filename string, content string) {
 
 func simulateNFSList(dirname string) {
 	path := filepath.Join(baseNFSMountDir, dirname)
-	files, err := ioutil.ReadDir(path)
+	files, err := os.ReadDir(path)
 	if err != nil {
 		log.Printf("Error listing directory %s: %v", dirname, err)
 		return
@@ -89,6 +90,34 @@ func main() {
 	log.Println("NFS 模拟完成")
 }
 
+func dnsMock() {
+	// 设置要解析的域名
+	domain := "www.baidu.com"
+
+	// 创建一个带有 1 秒超时的 context
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	// 使用带超时的 context 进行 DNS 解析
+	var r net.Resolver
+	ips, err := r.LookupIP(ctx, "ip", domain)
+
+	if err != nil {
+		if err, ok := err.(net.Error); ok && err.Timeout() {
+			fmt.Printf("DNS 解析 %s 超时\n", domain)
+		} else {
+			fmt.Printf("DNS 解析 %s 失败: %v\n", domain, err)
+		}
+		return
+	}
+
+	// 打印解析结果
+	fmt.Printf("DNS 解析 %s 成功:\n", domain)
+	for _, ip := range ips {
+		fmt.Printf("  IP: %s\n", ip.String())
+	}
+}
+
 func runDefaultScenario(duration, waitInterval time.Duration) {
 	startTime := time.Now()
 	for time.Since(startTime) < duration {
@@ -101,6 +130,9 @@ func runDefaultScenario(duration, waitInterval time.Duration) {
 
 			simulateNFSWrite(baseNFSMountDir, fmt.Sprintf("file_%d.txt", i), RandStringBytes(20))
 			time.Sleep(waitInterval)
+
+			// 模拟 dns 解析
+			dnsMock()
 		}
 	}
 }
