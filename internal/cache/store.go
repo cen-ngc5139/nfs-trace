@@ -27,10 +27,16 @@ var NFSDevIDFileIDFileInfoMap *sync.Map
 // value: string
 var NFSFileDetailMap *sync.Map
 
+// PidInfoMap 保存pid和pod、container的映射关系
+// key: pid
+// value: metadata.PidInfo
+var PidInfoMap *sync.Map
+
 func init() {
 	PodContainerPIDMap = new(sync.Map)
 	MountInfoMap = new(sync.Map)
 	NFSPerformanceMap = new(sync.Map)
 	NFSDevIDFileIDFileInfoMap = new(sync.Map)
 	NFSFileDetailMap = new(sync.Map)
+	PidInfoMap = new(sync.Map)
 }

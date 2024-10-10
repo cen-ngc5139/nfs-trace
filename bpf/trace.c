@@ -146,7 +146,7 @@ struct
     __uint(type, BPF_MAP_TYPE_HASH);
     __type(key, u64);
     __type(value, struct metadata);
-    __uint(max_entries, 1024);
+    __uint(max_entries, 2048);
 } pid_cgroup_map SEC(".maps");
 
 struct path_segment

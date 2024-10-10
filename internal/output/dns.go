@@ -7,8 +7,10 @@ import (
 	"time"
 
 	"github.com/cen-ngc5139/nfs-trace/internal/binary"
+	"github.com/cen-ngc5139/nfs-trace/internal/cache"
 	"github.com/cen-ngc5139/nfs-trace/internal/config"
 	"github.com/cen-ngc5139/nfs-trace/internal/log"
+	"github.com/cen-ngc5139/nfs-trace/internal/metadata"
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/perf"
 )
@@ -40,12 +42,26 @@ func ProcessDNS(coll *ebpf.Collection, ctx context.Context, cfg config.Configura
 
 		dname := ParseDNS(event.Domain[:])
 		comm := convertInt8ToString(event.Common[:])
+
+		var pidInfo metadata.PidInfo
+		pid, ok := cache.PidInfoMap.Load(int(event.Pid))
+		if ok {
+			pidInfo, _ = pid.(metadata.PidInfo)
+		}
+
 		if len(dname) != 0 {
-			log.StdoutOrFile(cfg.Output.Type, map[string]interface{}{
+			data := map[string]interface{}{
 				"pid":    event.Pid,
 				"comm":   comm,
 				"domain": dname,
-			})
+			}
+
+			if pidInfo.Pod != "" && pidInfo.Container != "" {
+				data["pod"] = pidInfo.Pod
+				data["container"] = pidInfo.Container
+			}
+
+			log.StdoutOrFile(cfg.Output.Type, data)
 		}
 
 		select {
