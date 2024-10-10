@@ -71,10 +71,34 @@ NFS Trace 支持各种命令行标志进行自定义。主要选项包括：
 - `--all-kmods`：附加到所有可用的内核模块
 - `--skip-attach`：跳过附加 kprobes
 - `--add-funcs`：添加要探测的函数名称（例如：rpc_task:1,sk_buff:2）
-- `--log-level`：设置日志级别（例如：0：无日志，1：错误，2：信息，3：调试）
-- `--output-details`：输出探测函数的详细信息
-- `--output-metrics`：输出性能指标
+- `--output-type`：指定输出类型（例如：file, stdout, kafka, es, logstash, redis）
 - `--enable-debug`：启用调试模式
+- `--enable-dns`：启用 DNS 模式
+- `--enable-nfs-metrics`：启用 NFS 指标模式
+- `--config-path`：指定配置文件路径
+```
+
+同时支持通过配置文件进行配置，配置文件路径可以通过 `--config-path` 指定。
+
+配置文件示例：
+
+```yaml
+filter:
+  func: "^(vfs_|nfs_).*"
+  struct: "kiocb"
+
+probing:
+  all_kmods: true
+  skip_attach: false
+  add_funcs: "nfs_file_direct_read:1,nfs_file_direct_write:1,nfs_swap_rw:1,nfs_file_read:1,nfs_file_write:1"
+
+features:
+  debug: false
+  dns: true
+  nfs_metrics: true
+
+output:
+  type: file
 ```
 
 ## 指标
