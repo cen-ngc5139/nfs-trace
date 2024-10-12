@@ -126,9 +126,10 @@ NFS Trace 可以作为 DaemonSet / Deployment 部署在您的 Kubernetes 集群�
 ## 致谢
 
 - [Cilium eBPF](https://github.com/cilium/ebpf) 库
-- [Gin Web Framework](https://github.com/gin-gonic/gin)
-- [Prometheus Go Client](https://github.com/prometheus/client_golang)
 - [PWRU](https://github.com/cilium/pwru)
 - [T Dubuc](http://perso.ens-lyon.fr/theophile.dubuc/files/CHEOPS24-TrackIOps.pdf)
+- [DeepFlow](https://github.com/deepflow-tech/deepflow)
+- [Gin Web Framework](https://github.com/gin-gonic/gin)
+- [Prometheus Go Client](https://github.com/prometheus/client_golang)
 
 有关实现细节的更多信息，请参阅项目中的源代码和注释。

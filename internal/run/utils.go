@@ -23,25 +23,29 @@ func upateBpfSpecWithFlags(bpfSpec *ebpf.CollectionSpec, cfg config.Configuratio
 	}
 
 	if !cfg.Features.DNS {
-		delete(bpfSpec.Programs, "kprobe_udp_recvmsg")
+		delete(bpfSpec.Programs, "kprobe_udp_sendmsg")
 		delete(bpfSpec.Maps, "dns_events")
+		delete(bpfSpec.Programs, "kretprobe_udp_recvmsg")
 	}
 }
 
-func getKprobeAttachMap(cfg config.Configuration) map[string]string {
-	attachMap := make(map[string]string)
+func getKprobeAttachMap(cfg config.Configuration) (kprobeFuncs, kretprobeFuncs map[string]string) {
+	kprobeFuncs = make(map[string]string)
+	kretprobeFuncs = make(map[string]string)
 
 	if cfg.Features.NFSMetrics {
-		attachMap["kb_nfs_write_d"] = "nfs_writeback_done"
-		attachMap["kb_nfs_read_d"] = "nfs_readpage_done"
-		attachMap["rpc_exit_task"] = "rpc_exit_task"
-		attachMap["rpc_execute"] = "rpc_make_runnable"
+		kprobeFuncs["kb_nfs_write_d"] = "nfs_writeback_done"
+		kprobeFuncs["kb_nfs_read_d"] = "nfs_readpage_done"
+		kprobeFuncs["rpc_exit_task"] = "rpc_exit_task"
+		kprobeFuncs["rpc_execute"] = "rpc_make_runnable"
 	}
 
-	// 如果未启用 DNS 模式，则删除 kprobe_udp_recvmsg 的 kprobe
+	// 如果未启用 DNS 模式，则删除 kprobe_udp_sendmsg 的 kprobe
 	if cfg.Features.DNS {
-		attachMap["kprobe_udp_recvmsg"] = "udp_sendmsg"
+		kprobeFuncs["kprobe_udp_sendmsg"] = "udp_sendmsg"
+		kprobeFuncs["kprobe_sys_recvmsg"] = "__sys_recvmsg"
+		kretprobeFuncs["kretprobe_sys_recvmsg"] = "__sys_recvmsg"
 	}
 
-	return attachMap
+	return kprobeFuncs, kretprobeFuncs
 }
