@@ -33,16 +33,6 @@ type Kprobe struct {
 	Prog      *ebpf.Program
 }
 
-var (
-	NFSKprobeProgs = map[string]string{
-		"kb_nfs_write_d":     "nfs_writeback_done",
-		"kb_nfs_read_d":      "nfs_readpage_done",
-		"rpc_exit_task":      "rpc_exit_task",
-		"rpc_execute":        "rpc_make_runnable",
-		"kprobe_udp_recvmsg": "udp_sendmsg",
-	}
-)
-
 func attachKprobes(ctx context.Context, bar *pb.ProgressBar, kprobes []Kprobe) (links []link.Link, ignored int, err error) {
 	links = make([]link.Link, 0, len(kprobes))
 	for _, kprobe := range kprobes {
@@ -269,6 +259,22 @@ func NewCustomFuncsKprober(manifest map[string]string, coll *ebpf.Collection) *k
 		kp, err := link.Kprobe(targetName, coll.Programs[progName], nil)
 		if err != nil {
 			log.Fatalf("Opening kprobe %s: %s\n", targetName, err)
+		}
+
+		k.links = append(k.links, kp)
+	}
+
+	return &k
+}
+
+func NewCustomKretprobes(manifest map[string]string, coll *ebpf.Collection) *kprober {
+	var k kprober
+	k.kprobeBatch = uint(len(manifest))
+
+	for progName, targetName := range manifest {
+		kp, err := link.Kretprobe(targetName, coll.Programs[progName], nil)
+		if err != nil {
+			log.Fatalf("Opening kretprobe %s: %s\n", targetName, err)
 		}
 
 		k.links = append(k.links, kp)

@@ -9,6 +9,12 @@
 #include "bpf/bpf_tracing.h"
 #include "bpf/bpf_endian.h"
 #include "bpf/bpf_ipv6.h"
+#include "trace.h"
+#include "bpf_utils.h"
+
+// read() syscall's input argument.
+// Key is {tgid, pid}.
+BPF_HASH(active_read_args_map, __u64, struct data_args_t);
 
 struct config
 {
@@ -711,8 +717,56 @@ extern int LINUX_KERNEL_VERSION __kconfig;
 
 static inline const struct iovec *get_iovec_from_iov_iter(struct iov_iter *iov_iter);
 
+SEC("kprobe/__sys_recvmsg")
+int kprobe_sys_recvmsg(struct pt_regs *ctx)
+{
+    int flags = (int)PT_REGS_PARM3(ctx);
+    if (flags & MSG_PEEK)
+        return 0;
+    struct user_msghdr __msg, *msghdr =
+                                  (struct user_msghdr *)PT_REGS_PARM2(ctx);
+    int sockfd = (int)PT_REGS_PARM1(ctx);
+
+    __u64 id = bpf_get_current_pid_tgid();
+    if (msghdr != NULL)
+    {
+        bpf_probe_read_user(&__msg, sizeof(__msg), (void *)msghdr);
+        msghdr = &__msg;
+        // Stash arguments.
+        struct data_args_t read_args = {};
+        read_args.source_fn = SYSCALL_FUNC_RECVMSG;
+        read_args.fd = sockfd;
+        read_args.iov = (__u64)(uintptr_t)msghdr->msg_iov;
+        read_args.iovlen = msghdr->msg_iovlen;
+        read_args.enter_ts = bpf_ktime_get_ns();
+        active_read_args_map__update(&id, &read_args);
+    }
+
+    return 0;
+}
+
+// 从 __sys_recvmsg 中获取 dns 解析结果信息
+SEC("kretprobe/__sys_recvmsg")
+int kretprobe_sys_recvmsg(struct pt_regs *ctx)
+{
+    __u64 id = bpf_get_current_pid_tgid();
+
+    struct data_args_t *read_args = active_read_args_map__lookup(&id);
+    if (!read_args)
+    {
+        return 0;
+    }
+
+    bpf_printk("id: %llu, source_fn: %d, fd: %d, iov: %p, iovlen: %u, enter_ts: %llu\n",
+               id, read_args->source_fn, read_args->fd, (void *)read_args->iov, read_args->iovlen, read_args->enter_ts);
+    active_read_args_map__delete(&id);
+
+    return 0;
+}
+
+// 从 udp_sendmsg 中获取 dns 解析请求信息
 SEC("kprobe/udp_sendmsg")
-int kprobe_udp_recvmsg(struct pt_regs *ctx)
+int kprobe_udp_sendmsg(struct pt_regs *ctx)
 {
     struct sock *sk = (struct sock *)PT_REGS_PARM1(ctx);
     __u16 dport = BPF_CORE_READ(sk, __sk_common.skc_dport);

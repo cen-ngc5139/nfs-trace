@@ -169,7 +169,7 @@ func Run(cfg config.Configuration) {
 	defer coll.Close()
 
 	// 根据 flag 获取 kprobe 附加关系
-	nfsKprobeProgs := getKprobeAttachMap(cfg)
+	kprobeFuncs, kretprobeFuncs := getKprobeAttachMap(cfg)
 
 	// 如果启用 NFS 指标，则附加 tracepoint
 	if cfg.Features.NFSMetrics {
@@ -185,8 +185,8 @@ func Run(cfg config.Configuration) {
 		// tracepoint rpc_task_begin/rpc_task_end 挂载点与 kprobe rpc_exit_task/rpc_execute 挂载点冲突
 
 		if !hasError {
-			delete(nfsKprobeProgs, "rpc_exit_task")
-			delete(nfsKprobeProgs, "rpc_execute")
+			delete(kprobeFuncs, "rpc_exit_task")
+			delete(kprobeFuncs, "rpc_execute")
 		}
 	}
 
@@ -194,10 +194,15 @@ func Run(cfg config.Configuration) {
 	k := bpf.NewKprober(ctx, funcs, coll, addr2name, false, 10)
 	defer k.DetachKprobes()
 
-	if len(nfsKprobeProgs) != 0 {
+	if len(kprobeFuncs) != 0 {
 		// 将 NFS 追踪的 kprobe 附加到内核
-		c := bpf.NewCustomFuncsKprober(nfsKprobeProgs, coll)
+		c := bpf.NewCustomFuncsKprober(kprobeFuncs, coll)
 		defer c.DetachKprobes()
+	}
+
+	if len(kretprobeFuncs) != 0 {
+		kret := bpf.NewCustomKretprobes(kretprobeFuncs, coll)
+		defer kret.DetachKprobes()
 	}
 
 	log.Info("Listening for events..")
